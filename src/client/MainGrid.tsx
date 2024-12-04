@@ -1,13 +1,14 @@
 import React, { forwardRef, useRef, useState } from "react";
 import { HOURS_HEIGHT_VH } from "../utils/constants";
 import { Event } from "../utils/interfaces";
-import { addDateBy } from "../utils/functions";
-import { formatDate } from "../utils/functions";
+import { addDateBy, formatDate } from "../utils/functions";
+
 interface MainGridProps {
     monday: Date;
+    Events: React.ReactNode
 }
 
-const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(({ monday }, ref) => {
+const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(({ monday, Events }, ref) => {
     const [eventIdToEvent, setEventIdToEvent] = useState<Map<string, Event>>(new Map());
     const [dateToEventId, setDateToEventId] = useState<Map<string, Set<string>>>(new Map());
 
@@ -28,6 +29,8 @@ const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(({ monday }, ref) => 
 
                 return (
                     <React.Fragment key={i}>
+                        {Events}
+
                         {Array.from({ length: 48 }, (_, j) => (
                             <div
                                 key={`${i}-${j}`}

@@ -1,15 +1,27 @@
 import React from "react";
 import { MODALS } from "../utils/constants";
 import NewEventtModal from "./NewEventtModal";
+import { FriendsModal } from "./FriendsModal";
+import { Profile } from "@/server/profile/Profile";
+
+
 interface ActiveModalProps {
-    activeModal: MODALS; // Type to determine which component to render
+    activeModal: MODALS;
+    Friends: React.ReactNode;
+    Profile: React.ReactNode;
 }
 
-const ActiveModal: React.FC<ActiveModalProps> = ({ activeModal = MODALS.FRIENDS }) => {
+export const ActiveModal: React.FC<ActiveModalProps> = ({ activeModal, Friends, Profile }) => {
     const renderContent = () => {
         switch (activeModal) {
-            case MODALS.FRIENDS:
+            case MODALS.ADD_EVENT:
                 return <NewEventtModal />;
+            case MODALS.FRIENDS:
+                return <FriendsModal Friends={Friends} />
+            case MODALS.CALENDARS:
+                return <></>
+            case MODALS.PROFILE:
+                return <>{Profile}</>
             default:
                 return <div>No matching modal found.</div>;
         }
@@ -26,4 +38,4 @@ const ActiveModal: React.FC<ActiveModalProps> = ({ activeModal = MODALS.FRIENDS 
 
 };
 
-export default ActiveModal;
+

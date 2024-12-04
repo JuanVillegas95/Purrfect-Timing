@@ -25,6 +25,7 @@ export const enum MODALS {
   CALENDARS,
   LOADING,
   FRIENDS,
+  PROFILE,
 }
 
 export const USER_ID: string = "BtXktmE5bOU5RHtNlw9vji9tcV23";

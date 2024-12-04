@@ -1,5 +1,5 @@
 import React from "react";
-import { createNewEvent } from "@/api/newEventModal";
+import { createNewEvent } from "@/server/newEventModal";
 import Input from "./Input";
 
 const NewEventModal: React.FC = () => {
