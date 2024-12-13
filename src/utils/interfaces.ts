@@ -7,14 +7,13 @@ export interface GroupedAttributes {
 
 export interface Event {
   eventId: string;
+  title: string;
   date: string;
   startHours: number;
   startMinutes: number;
   endHours: number;
   endMinutes: number;
   color: string;
-  icon: string;
-  title: string;
   description: string;
   groupId: string | null;
   groupStart: string | null;
@@ -26,7 +25,6 @@ export interface Calendar {
   eventIdToEvent: Map<string, Event>;
   dateToEventId: Map<string, Set<string>>;
   timeZone: string;
-  monday: Date;
 }
 
 export interface User {
@@ -34,14 +32,4 @@ export interface User {
   username: string;
   friends: { email: string; username: string }[];
   calendars: Map<string, Calendar>;
-}
-
-export interface BaseModalProps {
-  slots: {
-    header?: React.ReactNode;
-    body?: React.ReactNode;
-    footer?: React.ReactNode;
-    button?: React.ReactNode;
-  };
-  title: string;
 }

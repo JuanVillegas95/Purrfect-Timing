@@ -1,6 +1,7 @@
 import { toZonedTime } from "date-fns-tz";
 import { User } from "./interfaces";
 import { HOURS_HEIGHT_VH } from "./constants";
+
 export const minutesToHours = (minutes: number): number => minutes / 60;
 
 export const hoursToMinutes = (hours: number): number => hours * 60;
@@ -8,15 +9,29 @@ export const hoursToMinutes = (hours: number): number => hours * 60;
 export const pixelsToHours = (pixels: number): number =>
   pixels / HOURS_HEIGHT_VH;
 
-export const hoursToPixels = (hours: number): number => hours * HOURS_HEIGHT_VH;
+export const hoursToVh = (hours: number): number => hours * HOURS_HEIGHT_VH;
 
-export const formatTime = (unit: number): string =>
+export const timeToMinutes = (time: string): number => {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+};
+
+export const ianaToReadable = (iana: string) => iana.split("_").join(" ");
+
+export const timeToTwoDigits = (unit: number): string =>
   unit < 10 ? `0${unit}` : `${unit}`;
+
+export const formatTime = (hours: number, minutes: number): string => {
+  const paddedHours = hours.toString().padStart(2, "0");
+  const paddedMinutes = minutes.toString().padStart(2, "0");
+  return `${paddedHours}:${paddedMinutes}`;
+};
 
 export const timeInMinutes = (hours: number, minutes: number): number =>
   hoursToMinutes(hours) + minutes;
-export const timeInPixels = (hours: number, minutes: number): number =>
-  hoursToPixels(hours + minutesToHours(minutes));
+
+export const timeInVh = (hours: number, minutes: number): number =>
+  hoursToVh(hours + minutesToHours(minutes));
 
 export const pixelsToTime = (
   distanceFromTop: number,
@@ -31,7 +46,7 @@ export const pixelsToTime = (
 export const generate24HourIntervals = (): string[] => {
   const timeArray: string[] = [];
   for (let i = 0; i < 24; i++) {
-    const formattedTime = formatTime(i);
+    const formattedTime = timeToTwoDigits(i);
     timeArray.push(`${formattedTime}:00`);
     timeArray.push(`${formattedTime}:30`);
   }
@@ -41,7 +56,7 @@ export const generate24HourIntervals = (): string[] => {
 export const generate24Hours = (): string[] => {
   const hourArray: string[] = [];
   for (let i = 0; i < 24; i++) {
-    hourArray.push(formatTime(i));
+    hourArray.push(timeToTwoDigits(i));
   }
   return hourArray;
 };
@@ -49,7 +64,7 @@ export const generate24Hours = (): string[] => {
 export const generate60Minutes = (): string[] => {
   const minutesArray: string[] = [];
   for (let i = 0; i < 60; i++) {
-    minutesArray.push(formatTime(i));
+    minutesArray.push(timeToTwoDigits(i));
   }
   return minutesArray;
 };
@@ -86,34 +101,82 @@ export const syncScroll = (
   };
 };
 
-export const getMostRecentMonday = (timeZone: string): Date => {
-  const now: Date = toZonedTime(new Date().setHours(0, 0, 0, 0), timeZone);
+export const updateTime = (callback: () => void): (() => void) => {
+  const interval = setInterval(callback, 60000);
+  return () => clearInterval(interval);
+};
+
+export const handleKeyboard = (callback: () => void): (() => void) => {
+  const handleKeyboardEvent = (e: KeyboardEvent) => {
+    if (["Esc", "Escape"].includes(e.key)) callback();
+  };
+
+  window.addEventListener("keydown", handleKeyboardEvent);
+  return () => window.removeEventListener("keydown", handleKeyboardEvent);
+};
+
+// const now: Date = toZonedTime(new Date().setHours(0, 0, 0, 0), timeZone); // MAYBE CHANGE THIS ONE
+export const mostRecentMonday = (timeZone: string): Date => {
+  const now: Date = toZonedTime(new Date(), timeZone);
   const daysSinceMonday: number = now.getDay() === 0 ? 6 : now.getDay() - 1;
   now.setDate(now.getDate() - daysSinceMonday);
   return now;
 };
 
-// export const mountUser = (isNew: boolean): User => {
-//   if (!isNew) {
-//     return NEW_USER; //CHANGE THIS TO WHAT IS SUPPOSED TO BE
-//   }
-//   return NEW_USER;
-// };
-
-export const addDateBy = (date: Date, count: number): Date =>
-  new Date(date.setDate(date.getDate() + count));
-
-export const formatDate = (date: Date): string =>
-  new Intl.DateTimeFormat("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(date);
+export const addDateBy = (date: Date, count: number): Date => {
+  const newDate = new Date(date);
+  newDate.setDate(newDate.getDate() + count);
+  return newDate;
+};
 
 export const isValidHour = (hour: string): boolean => {
   if (!/^\d*$/.test(hour)) return false;
   const hourNumber = parseInt(hour, 10);
   if (hourNumber < 0 || hourNumber > 23) return false;
   return true;
+};
+
+export const localTimeZone = () =>
+  Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+export const formatMonthRange = (recentMonday: Date): string => {
+  const nextWeek: Date = addDateBy(recentMonday, 7);
+
+  const recentMondayLong: string = recentMonday.toLocaleDateString("en-US", {
+    month: "long",
+  });
+  const recentMondayShort: string = recentMonday.toLocaleDateString("en-US", {
+    month: "short",
+  });
+  const nextWeekShort: string = nextWeek.toLocaleDateString("en-US", {
+    month: "short",
+  });
+
+  return nextWeek.getMonth() === recentMonday.getMonth()
+    ? recentMondayLong
+    : `${recentMondayShort}-${nextWeekShort}`;
+};
+
+export const formatDateToMMDDYYYY = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1);
+  const day = String(date.getDate());
+  return `${month}/${day}/${year}`;
+};
+
+export const parseTimeString = (
+  time: string,
+): { hours: number; minutes: number } => {
+  const [hours, minutes] = time.split(":").map(Number);
+  if (
+    isNaN(hours) ||
+    isNaN(minutes) ||
+    hours < 0 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
+    throw new Error("Invalid time format");
+  }
+  return { hours, minutes };
 };
