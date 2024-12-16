@@ -12,6 +12,9 @@
   -ms-overflow-style: none;
 }
 
+input {
+  user-select: none;
+}
 *::-webkit-scrollbar {
   display: none;
 }

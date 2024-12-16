@@ -1,145 +1,165 @@
 import React, { useActionState, useRef, useState } from "react";
-import { TextInput } from "../../ui/TextInput";
-import { setEventServer } from "@server/events/eventActions";
+import { TextInput } from "@ui/TextInput";
 import { DatePicker } from "@ui/DatePicker";
 import { TimePicker } from "@ui/TimePicker";
 import { TextArea } from "@ui/TextArea";
-import { Checkbox } from "@ui/Checkbox";
 import { SelectedDays } from "@ui/SelectedDays";
-import { SubmitButton } from "@ui/SubmitButton";
-import { DAYS, EVENT_DESCRIPTION_MAX_LENGTH, EVENT_TITLE_MAX_LENGTH } from "@utils/constants";
-import { formatTime, timeToMinutes } from "@utils/functions";
+import { Button } from "@ui/Button";
+import { setEventServer } from "@server/events/eventActions";
+import { ColorPicker } from "@ui/ColorPicker";
+import { Icon } from "@ui/Icon";
+import { DAYS, PICKERS, EVENT_NAMES, BLANK_ACTIONS_STATE, BLANK_EVENT_ERRORS } from "@utils/constants";
+import { formatTime, validateEventForm } from "@utils/functions";
 import { Event } from "@utils/interfaces";
-
+import { MdOutlineEventRepeat } from "react-icons/md";
+import { ActionsState } from "@utils/interfaces"
 
 interface EventModalProps {
     setEvent: (event: Event) => void;
     clickedEvent?: Event;
     closeActiveModal: () => void;
+    activePicker: PICKERS;
+    setActivePicker: (picker: PICKERS) => void;
 }
 
-export const EventModal: React.FC<EventModalProps> = ({ setEvent, clickedEvent, closeActiveModal }) => {
-    const [state, formAction, isPending] = useActionState(handleSubmit, null);
 
+export const EventModal: React.FC<EventModalProps> = ({
+    setActivePicker,
+    setEvent,
+    clickedEvent,
+    closeActiveModal,
+    activePicker,
+}) => {
     const formRef = useRef<HTMLFormElement>(null);
     const [isRepeating, setIsRepeating] = useState<boolean>(false);
-    const [errors, setErrors] = useState<{ [key: string]: string }>({});
-
-    const validateForm = (formData: FormData) => {
-        const newErrors: { [key: string]: string } = {};
-
-        const title = formData.get("title") as string;
-        if (title.length > EVENT_TITLE_MAX_LENGTH) {
-            newErrors.TITLE = `Title must not exceed ${EVENT_TITLE_MAX_LENGTH} characters.`;
-        }
-
-        const description = formData.get("description") as string;
-        if (description.length > EVENT_DESCRIPTION_MAX_LENGTH) {
-            newErrors.TITLE = `Description must not exceed ${EVENT_TITLE_MAX_LENGTH} characters.`;
-        }
-
-        const date = formData.get("date") as string;
-        if (!date) newErrors.DATE = "Date is required.";
-
-        const startTime = formData.get("startTime") as string;
-        const endTime = formData.get("endTime") as string;
-        if (!startTime || !endTime) {
-            newErrors.TIME = "Start and end times are required.";
-        }
-        else if (timeToMinutes(startTime) >= timeToMinutes(endTime)) {
-            newErrors.TIME = "End time must be after start time.";
-        }
-
-        if (isRepeating) {
-            const startDate = formData.get("start") as string;
-            const endDate = formData.get("END_DATE") as string;
-            if (!startDate || !endDate) {
-                newErrors.REPEATING_DATES = "Start and end dates are required for repeating events.";
+    const [saveState, saveAction, savePending] = useActionState(
+        async (previousState: ActionsState, formData: FormData) => {
+            const actionState: ActionsState = validateEventForm(formData, isRepeating);
+            const hasErrors = Object.values(actionState.error).some((error) => error !== "");
+            if (hasErrors) {
+                console.log(formData.get("COLOR"), "this gud")
+                return { ...actionState, message: "Please check the highlighted fields and try again." };
             }
-            else if (startDate >= endDate) {
-                newErrors.REPEATING_DATES = "End date must be after start date.";
-            }
-            let flag: boolean = false;
-            for (const day of DAYS) {
-                const boolean = formData.get(day) as string;
-                if (boolean === "true") flag = true;
-            }
-            if (!flag) newErrors.SELECTED_DAYS = "At least one day must be selected.";
-        }
-
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
-
-
-    async function handleSubmit(formData: FormData) {
-        if (validateForm(formData)) {
             try {
-                formRef.current?.reset();
                 const eventToSet: Event = await setEventServer(formData, clickedEvent?.eventId);
                 setEvent(eventToSet);
-            } catch (error) {
-
+                return { ...actionState, message: "Event saved successfully!", eventToSet };
             }
-        }
-    };
+            catch (error) {
+                return { ...actionState, message: "An error occurred while saving the event. Please try again later." };
+            }
+            finally {
+                formRef.current?.reset();
+            }
+        },
+        { ...BLANK_ACTIONS_STATE }
+    );
 
-    return (
-        <div className="flex flex-col gap-4">
-            <form className="flex flex-col gap-4" ref={formRef} action={handleSubmit}>
+    const [deleteState, deleteAction, deletePending] = useActionState(
+        async (previousState: unknown, formData: FormData) => {
+            try {
+                await setEventServer(formData, clickedEvent?.eventId);
+                closeActiveModal();
+                return { message: "Event deleted successfully!" };
+            } catch (error) {
+                return { error, message: "An error occurred while deleting the event. Please try again later." };
+            }
+        },
+        null
+    );
+
+
+
+    return <div className="flex flex-col gap-4">
+        <form className="flex flex-col gap-4" ref={formRef}>
+            {saveState && <p className="text-blue-500 text-sm mt-1">{saveState.message}</p>}
+            {deleteState && <p className="text-blue-500 text-sm mt-1">{deleteState.message}</p>}
+            <div className="flex gap-4">
                 <TextInput
-                    name="title"
+                    name={EVENT_NAMES.TITLE}
                     placeholder="Add Title"
-                    error={errors.TITLE}
+                    error={saveState.error.TITLE}
                     defaultValue={clickedEvent?.title}
                 />
-                <div className="flex gap-4">
-                    <DatePicker
-                        name="date"
-                        error={errors.DATE}
-                        value={clickedEvent ? new Date(clickedEvent!.date) : undefined}
-                    />
-                    <TimePicker
-                        name="startTime"
-                        placeholder="Start Time"
-                        error={errors.TIME}
-                        value={clickedEvent ? formatTime(clickedEvent!.startHours, clickedEvent!.startMinutes) : undefined}
-                    />
-                    <TimePicker
-                        name="endTime"
-                        placeholder="End Time"
-                        error={errors.TIME}
-                        value={clickedEvent ? formatTime(clickedEvent!.endHours, clickedEvent!.endMinutes) : undefined}
-                    />
-                </div>
-                <div className="flex gap-4 ml-4">
-                    <Checkbox checked={isRepeating} onChange={() => setIsRepeating(!isRepeating)} />
-                    <p>Repeating</p>
-                </div>
-                {isRepeating && <div className="flex flex-col gap-4">
-                    <DatePicker
-                        placeholder="Start Date"
-                        name="startDate"
-                        error={errors.REPEATING_DATES}
-                    />
-                    <DatePicker
-                        placeholder="End Date"
-                        name="endDate"
-                        error={errors.REPEATING_DATES}
-                    />
-                    <SelectedDays
-                        names={DAYS}
-                        error={errors.SELECTED_DAYS}
-                    />
-                </div>
-                }
-                <TextArea
-                    name="description"
-                    defaultValue={clickedEvent?.description}
-                    error={errors.DESCRIPTION}
+                <ColorPicker
+                    value={clickedEvent ? clickedEvent.color : undefined}
+                    isActive={activePicker === PICKERS.COLOR}
+                    name={EVENT_NAMES.COLOR}
+                    open={() => setActivePicker(PICKERS.COLOR)}
+                    close={() => setActivePicker(PICKERS.NONE)}
                 />
-                <SubmitButton label="Save" onClick={closeActiveModal} pending={isPending} />
-            </form>
-        </div>
-    );
+                <Icon
+                    icon={MdOutlineEventRepeat}
+                    divHeight="2.5rem"
+                    divWidth="3rem"
+                    iconSize="2.0rem"
+                    border
+                    onClick={() => setIsRepeating(!isRepeating)}
+                />
+            </div>
+            <div className="flex gap-4">
+                <DatePicker
+                    name={EVENT_NAMES.START_DATE}
+                    placeholder="Start Date"
+                    error={saveState.error.START_DATE}
+                    value={clickedEvent ? new Date(clickedEvent!.startDate) : undefined}
+                    isActive={activePicker === PICKERS.DATE}
+                    open={() => setActivePicker(PICKERS.DATE)}
+                    close={() => setActivePicker(PICKERS.NONE)}
+                />
+                <TimePicker
+                    name={EVENT_NAMES.START_TIME}
+                    placeholder="Start Time"
+                    error={saveState.error.START_TIME}
+                    value={clickedEvent ? formatTime(clickedEvent!.startHours, clickedEvent!.startMinutes) : undefined}
+                    isActive={activePicker === PICKERS.START_TIME}
+                    open={() => setActivePicker(PICKERS.START_TIME)}
+                    close={() => setActivePicker(PICKERS.NONE)}
+
+                />
+                <TimePicker
+                    name={EVENT_NAMES.END_TIME}
+                    placeholder="End Time"
+                    error={saveState.error.END_TIME}
+                    value={clickedEvent ? formatTime(clickedEvent!.endHours, clickedEvent!.endMinutes) : undefined}
+                    isActive={activePicker === PICKERS.END_TIME}
+                    open={() => setActivePicker(PICKERS.END_TIME)}
+                    close={() => setActivePicker(PICKERS.NONE)}
+                />
+            </div>
+            {isRepeating && <div className="flex gap-4">
+                <DatePicker
+                    placeholder="End Date"
+                    name={EVENT_NAMES.END_DATE}
+                    error={saveState.error.REPEATING}
+                    isActive={activePicker === PICKERS.END_DATE}
+                    open={() => setActivePicker(PICKERS.END_DATE)}
+                    close={() => setActivePicker(PICKERS.NONE)}
+                />
+                <SelectedDays
+                    names={DAYS}
+                    error={saveState.error.SELECTED_DAYS}
+                />
+            </div>}
+            <TextArea
+                name={EVENT_NAMES.DESCRIPTION}
+                defaultValue={clickedEvent?.description}
+                error={saveState.error.DESCRIPTION}
+            />
+            <div className="flex w-full gap-4">
+                <Button
+                    label="Delete"
+                    variant="secondary"
+                    isPending={deletePending}
+                    formAction={deleteAction}
+                />
+                <Button
+                    label="Save"
+                    variant="primary"
+                    isPending={savePending}
+                    formAction={saveAction}
+                />
+            </div>
+        </form>
+    </div>
 };

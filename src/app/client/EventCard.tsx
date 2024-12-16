@@ -13,10 +13,11 @@ export const EventCard: React.FC<EventCardProps> = ({ event, editEvent }) => {
     const height: number = timeInVh(event.endHours, event.endMinutes) - top;
 
     return <div
-        className="absolute border-8 border-sky-500 w-full z-10 hover:cursor-pointer"
+        className="absolute w-full z-10 hover:cursor-pointer rounded-md"
         style={{
             top: `${top}vh`,
             height: `${height}vh`,
+            backgroundColor: event.color,
         }}
         onClick={() => editEvent(event)}
     />

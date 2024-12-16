@@ -1,5 +1,5 @@
-import React from "react";
-import { MODALS } from "@utils/constants";
+import React, { useState } from "react";
+import { MODALS, PICKERS } from "@utils/constants";
 import { FriendsModal } from "@client/FriendsModal";
 import { EventModal } from "@client/EventModal";
 import { CalendarsModals } from "@client/CalendarsModals"
@@ -14,13 +14,21 @@ interface ActiveModalProps {
     closeActiveModal: () => void;
     setEvent: (event: Event) => void;
     clickedEvent?: Event;
+    activePicker: PICKERS
+    setActivePicker: (picker: PICKERS) => void;
 }
 
-export const ActiveModal: React.FC<ActiveModalProps> = ({ activeModal, FriendCards, CalendarCards, ProfileModal, closeActiveModal, setEvent, clickedEvent }) => {
+export const ActiveModal: React.FC<ActiveModalProps> = ({ setActivePicker, activePicker, activeModal, FriendCards, CalendarCards, ProfileModal, closeActiveModal, setEvent, clickedEvent }) => {
     const renderContent = () => {
         switch (activeModal) {
             case MODALS.EVENT:
-                return <EventModal setEvent={setEvent} clickedEvent={clickedEvent} />;
+                return <EventModal
+                    setEvent={setEvent}
+                    clickedEvent={clickedEvent}
+                    closeActiveModal={closeActiveModal}
+                    setActivePicker={setActivePicker}
+                    activePicker={activePicker}
+                />;
             case MODALS.FRIENDS:
                 return <FriendsModal FriendCards={FriendCards} />
             case MODALS.CALENDARS:

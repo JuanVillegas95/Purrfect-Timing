@@ -9,40 +9,44 @@ export const SelectedDays: React.FC<SelectedDaysProps> = ({
     names = [],
     error,
 }) => {
-    const daysOfWeek = ["S", "M", "T", "W", "T", "F", "S"];
     const [selected, setSelected] = useState<boolean[]>(Array(7).fill(false));
 
-    const handleCheckboxChange = (index: number, isChecked: boolean) => {
-        const updatedSelected = [...selected];
-        updatedSelected[index] = isChecked;
-        setSelected(updatedSelected);
-
+    const handleCheckboxChange = (index: number) => {
+        console.log(selected)
+        setSelected((prevSelected) => {
+            const updatedSelected = [...prevSelected];
+            updatedSelected[index] = !updatedSelected[index];
+            return updatedSelected;
+        });
     };
 
-    return (
-        <div className="flex flex-col">
-            <div
-                className={`flex space-x-4 px-4 py-2 border rounded-md ${error ? "border-red-500" : "border-gray-300"
-                    }`}
+
+    return <div className="flex flex-col w-full items-center">
+        <div
+            className={`flex justify-center space-x-4 px-4 py-2 border rounded-md w-full ${error ? "border-red-500" : "border-gray-300"
+                }`}
+        >
+            {names.map((day: string, index: number) => <label
+                key={`${day + index}`}
+                className="relative flex w-6 h-6 items-center justify-center"
             >
-                {daysOfWeek.map((day, index) => (
-                    <label
-                        key={index}
-                        className="flex flex-col items-center cursor-pointer space-y-1"
-                    >
-                        <input
-                            type="checkbox"
-                            name={names[index]}
-                            checked={selected[index]}
-                            value={selected[index] ? "true" : "false"}
-                            onChange={(e) => handleCheckboxChange(index, e.target.checked)}
-                            className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                        />
-                        <span className="text-gray-700 font-semibold">{day}</span>
-                    </label>
-                ))}
-            </div>
-            {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+                <span
+                    className={`z-10 text-xs cursor-pointer ${selected[index] ? "text-white" : "text-blue-500"
+                        }`}
+                >
+                    {day[0]}
+                </span>
+                <input
+                    type="button"
+                    name={day}
+                    value={selected[index] ? "true" : "false"}
+                    onClick={() => handleCheckboxChange(index)}
+                    className={`absolute w-full h-full border-2 rounded-full cursor-pointer text-transparent ${selected[index] ? "bg-blue-500" : "bg-gray-100"
+                        }`}
+                />
+            </label>
+            )}
         </div>
-    );
+        {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+    </div>
 };

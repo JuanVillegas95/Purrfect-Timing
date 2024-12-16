@@ -8,7 +8,7 @@ import { ActiveModal } from "@client/ActiveModal";
 import { DaysOfTheWeek } from "@client/DaysOfTheWeek";
 import { CalendarHeader } from "@client/CalendarHeader";
 import { addDateBy, syncScroll, mostRecentMonday, updateTime, handleKeyboard } from "@utils/functions";
-import { HEADER_HEIGTH_ASIDE_WIDTH, DAYS_HEIGTH_HOURS_WIDTH, MODALS } from "@utils/constants";
+import { HEADER_HEIGTH_ASIDE_WIDTH, DAYS_HEIGTH_HOURS_WIDTH, MODALS, PICKERS } from "@utils/constants";
 import { Event } from "@utils/interfaces";
 
 interface DashboardProps {
@@ -23,6 +23,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
     const mainGridRef = useRef<HTMLDivElement>(null);
     const [monday, setMonday] = useState<Date>(mostRecentMonday(info.timeZone));
     const [activeModal, setActiveModal] = useState<MODALS>(MODALS.NONE)
+    const [activePicker, setActivePicker] = useState<PICKERS>(PICKERS.NONE);
     const [clickedEvent, setClickedEvent] = useState<Event>()
     const [eventIdToEvent, setEventIdToEvent] = useState<Map<string, Event>>(
         new Map(info.events.map((event: Event) => [event.eventId, event]))
@@ -30,23 +31,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
     const [dateToEventIds, setDateToEventIds] = useState<Map<string, Set<string>>>(() => {
         const map = new Map<string, Set<string>>();
         info.events.forEach((event: Event) => {
-            if (!map.has(event.date)) {
-                map.set(event.date, new Set());
+            if (!map.has(event.startDate)) {
+                map.set(event.startDate, new Set());
             }
-            map.get(event.date)!.add(event.eventId);
+            map.get(event.startDate)!.add(event.eventId);
         });
 
         return map;
     });
 
-
     useEffect(() => {
         const cleanupScroll = syncScroll(hoursOfTheDayRef, mainGridRef);
         const cleanupTime = updateTime(() => setMonday(mostRecentMonday(info.timeZone)));
-        const cleanupKeyboard = handleKeyboard(() => {
-            setActiveModal(MODALS.NONE)
-            setClickedEvent(undefined)
-        })
+        const cleanupKeyboard = handleKeyboard(closeModal)
 
         return () => {
             cleanupScroll();
@@ -55,23 +52,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
         };
     }, []);
 
-
-
+    function closeModal(): void {
+        setActiveModal(MODALS.NONE)
+        setActivePicker(PICKERS.NONE)
+        setClickedEvent(undefined)
+    }
 
     const setEvent = (event: Event): void => {
-        const { eventId, date } = event;
+        const { eventId, startDate } = event;
         setDateToEventIds((prev: Map<string, Set<string>>) => {
             const updatedMap: Map<string, Set<string>> = new Map(prev);
             if (eventIdToEvent.has(eventId)) {
-                const oldDay: string = eventIdToEvent.get(eventId)!.date;
-                const newDay: string = date;
+                const oldDay: string = eventIdToEvent.get(eventId)!.startDate;
+                const newDay: string = startDate;
                 if (oldDay !== newDay) {
                     const eventSet = updatedMap.get(oldDay)!;
                     if (eventSet.size === 0) updatedMap.delete(oldDay);
                 }
             }
-            if (!updatedMap.has(date)) updatedMap.set(date, new Set([eventId]));
-            else updatedMap.get(date)!.add(eventId);
+            if (!updatedMap.has(startDate)) updatedMap.set(startDate, new Set([eventId]));
+            else updatedMap.get(startDate)!.add(eventId);
             return updatedMap;
         });
 
@@ -136,10 +136,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
                     ProfileModal={ProfileModal}
                     setEvent={setEvent}
                     clickedEvent={clickedEvent}
-                    closeActiveModal={() => {
-                        setActiveModal(MODALS.NONE);
-                        setClickedEvent(undefined);
-                    }}
+                    activePicker={activePicker}
+                    setActivePicker={(picker: PICKERS) => setActivePicker(picker)}
+                    closeActiveModal={closeModal}
                 />
             }
         </div >

@@ -1,3 +1,4 @@
+import { EVENT_NAMES } from "@utils/constants";
 export interface GroupedAttributes {
   groupId: string | null;
   groupStart: string | null;
@@ -8,16 +9,14 @@ export interface GroupedAttributes {
 export interface Event {
   eventId: string;
   title: string;
-  date: string;
+  description: string;
+  color: string;
   startHours: number;
   startMinutes: number;
   endHours: number;
   endMinutes: number;
-  color: string;
-  description: string;
-  groupId: string | null;
-  groupStart: string | null;
-  groupEnd: string | null;
+  startDate: string;
+  endDate: string;
   selectedDays: boolean[] | null;
 }
 
@@ -32,4 +31,10 @@ export interface User {
   username: string;
   friends: { email: string; username: string }[];
   calendars: Map<string, Calendar>;
+}
+
+export interface ActionsState {
+  error: Record<EVENT_NAMES, string>;
+  message: string;
+  eventToSet?: Event;
 }

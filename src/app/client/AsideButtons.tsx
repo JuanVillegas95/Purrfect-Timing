@@ -16,26 +16,34 @@ export const AsideButtons: React.FC<AsideButtonsProps> = ({ setActiveModal }) =>
     return <div className="flex flex-col items-center justify-center gap-4 mt-5">
         <Icon
             icon={IoMdAdd}
-            divSize="2.5rem"
+            divHeight="2.5rem"
+            divWidth="2.5rem"
+            border
             iconSize="1.5rem"
-            borderType="squared"
+
             onClick={() => setActiveModal(MODALS.EVENT)}
         />
         <Icon
             icon={FaRegCalendarAlt}
-            divSize="2.5rem"
+            divHeight="2.5rem"
+            divWidth="2.5rem"
+            border
             iconSize="2rem"
             onClick={() => setActiveModal(MODALS.CALENDARS)}
         />
         <Icon
             icon={GoPersonAdd}
-            divSize="2.5rem"
+            divHeight="2.5rem"
+            divWidth="2.5rem"
+            border
             iconSize="2rem"
             onClick={() => setActiveModal(MODALS.FRIENDS)}
         />
         <Icon
             icon={CgProfile}
-            divSize="2.5rem"
+            divHeight="2.5rem"
+            divWidth="2.5rem"
+            border
             iconSize="2rem"
             onClick={() => setActiveModal(MODALS.PROFILE)}
         />

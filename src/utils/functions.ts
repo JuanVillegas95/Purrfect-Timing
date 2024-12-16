@@ -1,6 +1,14 @@
 import { toZonedTime } from "date-fns-tz";
-import { User } from "./interfaces";
-import { HOURS_HEIGHT_VH } from "./constants";
+import { ActionsState, User } from "./interfaces";
+import {
+  DAYS,
+  EVENT_DESCRIPTION_MAX_LENGTH,
+  EVENT_TITLE_MAX_LENGTH,
+  HOURS_HEIGHT_VH,
+  EVENT_NAMES,
+  BLANK_ACTIONS_STATE,
+  BLANK_EVENT_ERRORS,
+} from "@utils/constants";
 
 export const minutesToHours = (minutes: number): number => minutes / 60;
 
@@ -179,4 +187,56 @@ export const parseTimeString = (
     throw new Error("Invalid time format");
   }
   return { hours, minutes };
+};
+
+export const validateEventForm = (
+  formData: FormData,
+  isRepeating: boolean,
+): ActionsState => {
+  const newErrors: Record<EVENT_NAMES, string> = { ...BLANK_EVENT_ERRORS };
+
+  const title = formData.get(EVENT_NAMES.TITLE) as string;
+  if (title.length > EVENT_TITLE_MAX_LENGTH) {
+    newErrors.TITLE = `Description must not exceed ${EVENT_TITLE_MAX_LENGTH} characters.`;
+  }
+
+  const color = formData.get(EVENT_NAMES.COLOR) as string;
+  if (!color) {
+    console.log(color);
+    newErrors.COLOR = `Pick a color`;
+  }
+
+  const description = formData.get(EVENT_NAMES.DESCRIPTION) as string;
+  if (description.length > EVENT_DESCRIPTION_MAX_LENGTH) {
+    newErrors.DESCRIPTION = `Description must not exceed ${EVENT_DESCRIPTION_MAX_LENGTH} characters.`;
+  }
+
+  const startDate = formData.get(EVENT_NAMES.START_DATE) as string;
+  if (!startDate) newErrors.START_DATE = "Start Date is required.";
+
+  const startTime = formData.get(EVENT_NAMES.START_TIME) as string;
+  const endTime = formData.get(EVENT_NAMES.END_TIME) as string;
+  if (!startTime || !endTime) {
+    newErrors.START_TIME = "Start and end times are required.";
+  } else if (timeToMinutes(startTime) >= timeToMinutes(endTime)) {
+    newErrors.END_TIME = "End time must be after start time.";
+  }
+
+  if (isRepeating) {
+    const endDate = formData.get(EVENT_NAMES.END_DATE) as string;
+    if (!endDate) {
+      newErrors.END_DATE =
+        "Start and end dates are required for repeating events.";
+    } else if (startDate >= endDate) {
+      newErrors.REPEATING = "End date must be after start date.";
+    }
+    let flag: boolean = false;
+    for (const day of DAYS) {
+      const boolean = formData.get(day) as string;
+      if (boolean === "true") flag = true;
+    }
+    if (!flag) newErrors.SELECTED_DAYS = "At least one day must be selected.";
+  }
+
+  return { ...BLANK_ACTIONS_STATE, error: newErrors };
 };

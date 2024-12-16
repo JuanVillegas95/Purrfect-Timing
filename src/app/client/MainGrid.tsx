@@ -13,7 +13,6 @@ interface MainGridProps {
 }
 
 export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(({ monday, eventIdToEvent, dateToEventIds, editEvent }, ref) => {
-
     const columnDivRefs: React.RefObject<HTMLDivElement>[] = new Array(7)
         .fill(null)
         .map(() => useRef<HTMLDivElement>(null));
@@ -23,7 +22,7 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(({ monday, eve
         className="grid grid-cols-7 border border-black overflow-scroll h-full relative"
         style={{ maxHeight: "calc(100vh - 10vh)" }}
     >
-        {columnDivRefs.map((_, i: number) => {
+        {columnDivRefs.map((_: unknown, i: number) => {
             const columnDate: Date = addDateBy(monday, i);
             const formattedDate: string = formatDateToMMDDYYYY(columnDate);
             const eventIds: string[] = Array.from(dateToEventIds.get(formattedDate) || []);
@@ -31,12 +30,13 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(({ monday, eve
                 const event = eventIdToEvent.get(eventId);
                 return event ? [event] : [];
             });
+
             return <div
                 key={i}
                 data-key={i}
                 className="relative"
             >
-                {Array.from({ length: 48 }, (_, j) => <div
+                {Array.from({ length: 48 }, (_: unknown, j: number) => <div
                     key={`${i}-${j}`}
                     className="border border-black w-full"
                     style={{
@@ -45,15 +45,16 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(({ monday, eve
                     }}
                 />
                 )}
-                {events.map((event: Event, k: number) =>
-                    <EventCard
+                {events.map((event: Event, k: number) => {
+                    return <EventCard
                         event={event}
                         key={`${i}-${k}`}
                         editEvent={editEvent}
                     />
+                }
+
                 )}
             </div>
-
         })}
     </div>
 });

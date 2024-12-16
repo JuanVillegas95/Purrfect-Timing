@@ -3,32 +3,29 @@ import { IconType } from "react-icons";
 
 interface IconProps {
     icon: IconType;
-    borderType?: "rounded" | "squared";
+    border?: boolean;
     iconSize?: string;
-    divSize?: string;
+    divWidth?: string;
+    divHeight?: string
     onClick?: () => void
 }
 
 export const Icon: React.FC<IconProps> = ({
     icon,
-    borderType,
+    border,
     iconSize = "32px",
-    divSize = "64px",
+    divWidth = "64px",
+    divHeight = "64px",
     onClick
 }) => {
-    const borderClass =
-        borderType === "rounded"
-            ? "rounded-full border-2 border-black"
-            : borderType === "squared"
-                ? "rounded-md border-2 border-black"
-                : "";
+    const borderClass = border ? " border-gray-300 border rounded-md " : "";
 
     return (
         <div
             className={`flex items-center justify-center hover:cursor-pointer ${borderClass}`}
             style={{
-                width: divSize,
-                height: divSize,
+                width: divWidth,
+                height: divHeight,
             }}
             onClick={onClick}
         >

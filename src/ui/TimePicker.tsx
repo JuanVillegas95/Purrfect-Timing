@@ -5,6 +5,9 @@ interface TimePickerProps {
     name?: string;
     error?: string;
     value?: string;
+    isActive: boolean;
+    open: () => void;
+    close: () => void;
 }
 
 export const TimePicker: React.FC<TimePickerProps> = ({
@@ -12,8 +15,10 @@ export const TimePicker: React.FC<TimePickerProps> = ({
     name,
     error,
     value = "",
+    isActive,
+    open,
+    close
 }) => {
-    const [showPicker, setShowPicker] = useState<boolean>(false);
     const [selectedTime, setSelectedTime] = useState<string>(value);
 
     const generateTimes = (): string[] => {
@@ -31,17 +36,12 @@ export const TimePicker: React.FC<TimePickerProps> = ({
 
     const times = generateTimes();
 
-    const selectTime = (time: string): void => {
-        setSelectedTime(time);
-        setShowPicker(false);
-    };
-
     return (
         <div className="flex flex-col w-full relative">
             <input
                 type="text"
                 value={selectedTime}
-                onClick={() => setShowPicker(!showPicker)}
+                onClick={() => isActive ? close() : open()}
                 readOnly
                 name={name}
                 placeholder={placeholder}
@@ -52,19 +52,21 @@ export const TimePicker: React.FC<TimePickerProps> = ({
             />
             {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
 
-            {showPicker && (
-                <div className="absolute top-12 bg-white border rounded-lg shadow-lg p-4 max-h-64 w-64 overflow-y-auto z-10">
-                    {times.map((time) => (
-                        <div
-                            key={time}
-                            onClick={() => selectTime(time)}
-                            className="py-2 px-4 hover:bg-blue-100 cursor-pointer text-center rounded-md"
-                        >
-                            {time}
-                        </div>
-                    ))}
-                </div>
-            )}
+            {isActive && <div className="absolute top-12 bg-white border rounded-lg shadow-lg p-4 max-h-64 w-64 overflow-y-auto z-10">
+                {times.map((time) => (
+                    <div
+                        key={time}
+                        onClick={() => {
+                            setSelectedTime(time)
+                            close()
+                        }}
+                        className="py-2 px-4 hover:bg-blue-100 cursor-pointer text-center rounded-md"
+                    >
+                        {time}
+                    </div>
+                ))}
+            </div>
+            }
         </div>
     );
 };
