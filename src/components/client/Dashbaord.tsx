@@ -1,12 +1,12 @@
 
 "use client"
 import React, { useRef, useState, useEffect } from "react";
-import { HoursOfTheDay } from "@client/HoursOfTheDay";
-import { MainGrid } from "@client/MainGrid";
-import { AsideButtons } from "@client/AsideButtons";
-import { ActiveModal } from "@client/ActiveModal";
-import { DaysOfTheWeek } from "@client/DaysOfTheWeek";
-import { CalendarHeader } from "@client/CalendarHeader";
+import { HoursOfTheDay } from "./HoursOfTheDay";
+import { MainGrid } from "./MainGrid";
+import { AsideButtons } from "./AsideButtons";
+import { ActiveModal } from "./ActiveModal";
+import { DaysOfTheWeek } from "./DaysOfTheWeek";
+import { CalendarHeader } from "./CalendarHeader";
 import { addDateBy, syncScroll, mostRecentMonday, updateTime, handleKeyboard } from "@utils/functions";
 import { HEADER_HEIGTH_ASIDE_WIDTH, DAYS_HEIGTH_HOURS_WIDTH, MODALS, PICKERS } from "@utils/constants";
 import { Event } from "@utils/interfaces";
@@ -82,7 +82,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
         });
     };
 
-
+    const calendarNavigation = (direction: "next" | "prev" | "today"): void => {
+        switch (direction) {
+            case "next":
+                setMonday(addDateBy(monday, 7))
+                break;
+            case "prev":
+                setMonday(addDateBy(monday, -7))
+                break;
+            case "today":
+                setMonday(mostRecentMonday(info.timeZone))
+                break;
+            default:
+                break;
+        }
+    }
 
     return <React.Fragment>
         <div
@@ -95,7 +109,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
             <div className="col-span-full row-start-1 bg-red">
                 <CalendarHeader
                     monday={monday}
-                    nextWeek={() => setMonday(addDateBy(monday, 7))}
+                    nextWeek={() => }
                     prevWeek={() => setMonday(addDateBy(monday, -7))}
                     today={() => setMonday(mostRecentMonday(info.timeZone))}
                     timeZone={info.timeZone}

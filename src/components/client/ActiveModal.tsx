@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { MODALS, PICKERS } from "@utils/constants";
-import { FriendsModal } from "@client/FriendsModal";
-import { EventModal } from "@client/EventModal";
-import { CalendarsModals } from "@client/CalendarsModals"
+import { FriendsModal } from "./FriendsModal";
+import { EventModal } from "./EventModal";
+import { CalendarsModals } from "./CalendarsModals"
 import { AboutUsModal } from "./AboutUsModal";
 import { Event } from "@utils/interfaces";
 

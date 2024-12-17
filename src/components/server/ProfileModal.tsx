@@ -1,5 +1,5 @@
 import React from "react";
-import { ProfilePictureServer } from "./picture/ProfilePictureServer";
+import { ProfilePictureServer } from "@server/ProfilePictureServer";
 import { ProfilePicture } from "@client/ProfilePicture";
 
 export const ProfileModal = async () => {

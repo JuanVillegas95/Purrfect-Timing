@@ -1,6 +1,6 @@
 import React from "react";
 import { MODALS } from "../../utils/constants";
-import { Icon } from "@ui/Icon"
+import { Icon } from "../ui/Icon"
 import { IoMdAdd } from "react-icons/io";
 import { FaRegCalendarAlt } from "react-icons/fa";
 import { GoPersonAdd } from "react-icons/go";

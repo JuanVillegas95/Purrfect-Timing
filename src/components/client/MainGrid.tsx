@@ -2,7 +2,7 @@ import React, { forwardRef, useRef, useState } from "react";
 import { HOURS_HEIGHT_VH } from "../../utils/constants";
 import { Event } from "../../utils/interfaces";
 import { addDateBy, formatDateToMMDDYYYY } from "../../utils/functions";
-import { EventCard } from "@client/EventCard"
+import { EventCard } from "./EventCard"
 
 interface MainGridProps {
     monday: Date;

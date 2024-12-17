@@ -1,8 +1,8 @@
 import React from "react";
 import { Avatar } from "@ui/Avatar";
-import imgae from "../../../../../public/beautiful-latin-woman-avatar-character-icon-free-vector.jpg"
+import imgae from "@public/beautiful-latin-woman-avatar-character-icon-free-vector.jpg"
 
-export const ProfilePictureServer = async () => {
+export const ProfileNameServer = async () => {
     // Here the await
     return <Avatar
         src={imgae.src}

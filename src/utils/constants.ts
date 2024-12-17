@@ -94,3 +94,10 @@ export const BLANK_ACTIONS_STATE: ActionsState = {
   message: "",
   eventToSet: undefined,
 };
+
+export enum EVENT_FETCH_TESHHOLDS {
+  MAX_EVENTS = 200,
+  MIN_EVENTS = 50,
+  MIN_DAYS = 7,
+  MAX_DAYS = 30,
+}

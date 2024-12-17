@@ -15,12 +15,12 @@
     "jsx": "preserve",
     "incremental": true,
     "paths": {
-      "@client/*": ["./src/app/client/*"],
-      "@server/*": ["./src/app/server/*"],
-      "@ui/*": ["./src/ui/*"],
+      "@client/*": ["./src/components/client/*"],
+      "@server/*": ["./src/components/server/*"],
+      "@ui/*": ["./src/components/ui/*"],
       "@utils/*": ["./src/utils/*"],
       "@config/*": ["./src/config/*"],
-      "@img/*": ["./public/*"]
+      "@public/*": ["./public/*"]
     },
     "plugins": [
       {

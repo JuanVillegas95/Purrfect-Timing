@@ -1,13 +1,13 @@
 import React, { useActionState, useRef, useState } from "react";
-import { TextInput } from "@ui/TextInput";
-import { DatePicker } from "@ui/DatePicker";
-import { TimePicker } from "@ui/TimePicker";
-import { TextArea } from "@ui/TextArea";
-import { SelectedDays } from "@ui/SelectedDays";
-import { Button } from "@ui/Button";
-import { setEventServer } from "@server/events/eventActions";
-import { ColorPicker } from "@ui/ColorPicker";
-import { Icon } from "@ui/Icon";
+import { TextInput } from "../ui/TextInput";
+import { DatePicker } from "../ui/DatePicker";
+import { TimePicker } from "../ui/TimePicker";
+import { TextArea } from "../ui/TextArea";
+import { SelectedDays } from "../ui/SelectedDays";
+import { Button } from "../ui/Button";
+import { setEventServer } from "../server/actions";
+import { ColorPicker } from "../ui/ColorPicker";
+import { Icon } from "../ui/Icon";
 import { DAYS, PICKERS, EVENT_NAMES, BLANK_ACTIONS_STATE, BLANK_EVENT_ERRORS } from "@utils/constants";
 import { formatTime, validateEventForm } from "@utils/functions";
 import { Event } from "@utils/interfaces";
@@ -37,7 +37,6 @@ export const EventModal: React.FC<EventModalProps> = ({
             const actionState: ActionsState = validateEventForm(formData, isRepeating);
             const hasErrors = Object.values(actionState.error).some((error) => error !== "");
             if (hasErrors) {
-                console.log(formData.get("COLOR"), "this gud")
                 return { ...actionState, message: "Please check the highlighted fields and try again." };
             }
             try {
