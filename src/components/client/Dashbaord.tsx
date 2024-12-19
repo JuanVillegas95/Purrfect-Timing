@@ -1,48 +1,69 @@
 
 "use client"
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useActionState } from "react";
 import { HoursOfTheDay } from "./HoursOfTheDay";
 import { MainGrid } from "./MainGrid";
 import { AsideButtons } from "./AsideButtons";
 import { ActiveModal } from "./ActiveModal";
 import { DaysOfTheWeek } from "./DaysOfTheWeek";
 import { CalendarHeader } from "./CalendarHeader";
-import { addDateBy, syncScroll, mostRecentMonday, updateTime, handleKeyboard } from "@utils/functions";
-import { HEADER_HEIGTH_ASIDE_WIDTH, DAYS_HEIGTH_HOURS_WIDTH, MODALS, PICKERS } from "@utils/constants";
-import { Event } from "@utils/interfaces";
+import { addDateBy, syncScroll, mostRecentMonday, updateTime, handleKeyboard, formatDateToISO, calculateRangeDays, adjustFetchRange, mapEventIdToEvent, mapDateToEventIds, localTimeZone } from "@utils/functions";
+import { HEADER_HEIGTH_ASIDE_WIDTH, DAYS_HEIGTH_HOURS_WIDTH, MODALS, PICKERS, BLANK_CALENDAR_ACTIONS_STATE } from "@utils/constants";
+import { CalendarActionsState, Event, Range } from "@utils/interfaces";
+import { getCalendarData } from "@server/actions"
 
 interface DashboardProps {
     FriendCards: React.ReactNode
     CalendarCards: React.ReactNode
     ProfileModal: React.ReactNode
-    info: any
+    initCalendarData: CalendarActionsState
+    initRange: { start: string, end: string }
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards, ProfileModal, info }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards, ProfileModal, initCalendarData, initRange }) => {
+    const [eventIdToEvent, setEventIdToEvent] = useState<Map<string, Event>>(mapEventIdToEvent(initCalendarData));
+    const [dateToEventIds, setDateToEventIds] = useState<Map<string, Set<string>>>(mapDateToEventIds(initCalendarData, initRange));
+    const [range, setRange] = useState<{ start: string; end: string }>(initRange)
+    const [timeZone, setTimeZone] = useState<string>(initCalendarData.timeZone);
+    const [monday, setMonday] = useState<Date>(mostRecentMonday(initCalendarData.timeZone));
+    const [activePicker, setActivePicker] = useState<PICKERS>(PICKERS.NONE);
+    const [activeModal, setActiveModal] = useState<MODALS>(MODALS.NONE)
+    const [clickedEvent, setClickedEvent] = useState<Event>()
+    const [isLoadingEvents, setIsLoadingEvents] = useState<boolean>(false);
     const hoursOfTheDayRef = useRef<HTMLDivElement>(null);
     const mainGridRef = useRef<HTMLDivElement>(null);
-    const [monday, setMonday] = useState<Date>(mostRecentMonday(info.timeZone));
-    const [activeModal, setActiveModal] = useState<MODALS>(MODALS.NONE)
-    const [activePicker, setActivePicker] = useState<PICKERS>(PICKERS.NONE);
-    const [clickedEvent, setClickedEvent] = useState<Event>()
-    const [eventIdToEvent, setEventIdToEvent] = useState<Map<string, Event>>(
-        new Map(info.events.map((event: Event) => [event.eventId, event]))
-    );
-    const [dateToEventIds, setDateToEventIds] = useState<Map<string, Set<string>>>(() => {
-        const map = new Map<string, Set<string>>();
-        info.events.forEach((event: Event) => {
-            if (!map.has(event.startDate)) {
-                map.set(event.startDate, new Set());
-            }
-            map.get(event.startDate)!.add(event.eventId);
-        });
 
-        return map;
-    });
+    useEffect(() => {
+        if (monday >= new Date(range.start) && monday <= new Date(range.end)) {
+            console.log("No need of refetching")
+            return;
+        }
+        const fetchCalendarData = async () => {
+            setIsLoadingEvents(true);
+            try {
+                const calendarData: CalendarActionsState = await getCalendarData(
+                    range.start,
+                    range.end
+                );
+
+                setEventIdToEvent(mapEventIdToEvent(calendarData));
+                setDateToEventIds(mapDateToEventIds(calendarData, range));
+            }
+            catch (error) {
+                console.error("Error fetching calendar data:", error);
+            }
+            finally {
+                setIsLoadingEvents(false);
+            }
+        };
+        fetchCalendarData();
+    }, [range]);
+
+
 
     useEffect(() => {
         const cleanupScroll = syncScroll(hoursOfTheDayRef, mainGridRef);
-        const cleanupTime = updateTime(() => setMonday(mostRecentMonday(info.timeZone)));
+        const cleanupTime = updateTime(() => setMonday(mostRecentMonday(timeZone)));
         const cleanupKeyboard = handleKeyboard(closeModal)
 
         return () => {
@@ -58,6 +79,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
         setClickedEvent(undefined)
     }
 
+    const calendarNavigation = (direction: "next" | "prev" | "today"): void => {
+        let newMonday: Date;
+        switch (direction) {
+            case "next":
+                newMonday = addDateBy(monday, 7);
+                break;
+            case "prev":
+                newMonday = addDateBy(monday, -7);
+                break;
+            case "today":
+                newMonday = mostRecentMonday(timeZone);
+                break;
+        }
+        setMonday(newMonday);
+        if (newMonday <= new Date(range.start) || newMonday >= new Date(range.end)) return;
+        const newRange: Range = adjustFetchRange(
+            eventIdToEvent.size,
+            range,
+            monday,
+            localTimeZone()
+        );
+        setRange(newRange);
+    };
+
     const setEvent = (event: Event): void => {
         const { eventId, startDate } = event;
         setDateToEventIds((prev: Map<string, Set<string>>) => {
@@ -66,7 +111,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
                 const oldDay: string = eventIdToEvent.get(eventId)!.startDate;
                 const newDay: string = startDate;
                 if (oldDay !== newDay) {
-                    const eventSet = updatedMap.get(oldDay)!;
+                    const eventSet: Set<string> = updatedMap.get(oldDay)!;
+                    eventSet.delete(eventId)
                     if (eventSet.size === 0) updatedMap.delete(oldDay);
                 }
             }
@@ -82,21 +128,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
         });
     };
 
-    const calendarNavigation = (direction: "next" | "prev" | "today"): void => {
-        switch (direction) {
-            case "next":
-                setMonday(addDateBy(monday, 7))
-                break;
-            case "prev":
-                setMonday(addDateBy(monday, -7))
-                break;
-            case "today":
-                setMonday(mostRecentMonday(info.timeZone))
-                break;
-            default:
-                break;
-        }
-    }
+    const deleteEvent = (event: Event): void => {
+        const { eventId, startDate } = event;
+        setDateToEventIds((prev: Map<string, Set<string>>) => {
+            const updatedMap: Map<string, Set<string>> = new Map(prev);
+            const eventSet: Set<string> = updatedMap.get(startDate)!;
+            eventSet.delete(eventId);
+            if (eventSet.size === 0) updatedMap.delete(startDate);
+            return updatedMap;
+        });
+
+        setEventIdToEvent((prev: Map<string, Event>) => {
+            const updatedMap = new Map(prev);
+            updatedMap.delete(eventId);
+            return updatedMap;
+        });
+    };
+
 
     return <React.Fragment>
         <div
@@ -109,10 +157,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
             <div className="col-span-full row-start-1 bg-red">
                 <CalendarHeader
                     monday={monday}
-                    nextWeek={() => }
-                    prevWeek={() => setMonday(addDateBy(monday, -7))}
-                    today={() => setMonday(mostRecentMonday(info.timeZone))}
-                    timeZone={info.timeZone}
+                    calendarNavigation={(direction: "next" | "prev" | "today") => calendarNavigation(direction)}
+                    timeZone={timeZone}
+                    isLoadingEvents={isLoadingEvents}
+                    range={range}
                 />
             </div>
             <div className="row-start-2 row-end-[-1] col-start-1 w-full">
@@ -133,6 +181,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
             <div className="row-start-3 col-start-3 col-end-[-1]">
                 <MainGrid
                     ref={mainGridRef}
+                    isLoadingEvents={isLoadingEvents}
                     monday={monday}
                     eventIdToEvent={eventIdToEvent}
                     dateToEventIds={dateToEventIds}
@@ -149,8 +198,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
                     CalendarCards={CalendarCards}
                     ProfileModal={ProfileModal}
                     setEvent={setEvent}
+                    deleteEvent={deleteEvent}
                     clickedEvent={clickedEvent}
                     activePicker={activePicker}
+                    timeZone={timeZone}
                     setActivePicker={(picker: PICKERS) => setActivePicker(picker)}
                     closeActiveModal={closeModal}
                 />

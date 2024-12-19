@@ -1,4 +1,5 @@
 import { EVENT_NAMES } from "@utils/constants";
+
 export interface GroupedAttributes {
   groupId: string | null;
   groupStart: string | null;
@@ -33,8 +34,21 @@ export interface User {
   calendars: Map<string, Calendar>;
 }
 
-export interface ActionsState {
+export interface EventActionsState {
   error: Record<EVENT_NAMES, string>;
   message: string;
   eventToSet?: Event;
+}
+
+export interface CalendarActionsState {
+  // error: Record<EVENT_NAMES, string>;
+  singleEvents: Event[];
+  recurringEvents: Event[];
+  message: string;
+  timeZone: string;
+}
+
+export interface Range {
+  start: string;
+  end: string;
 }

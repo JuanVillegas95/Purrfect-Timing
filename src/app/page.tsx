@@ -2,14 +2,28 @@ import { FriendCards } from "../components/server/FriendCards"
 import { CalendarCards } from "../components/server/CalendarCards"
 import { ProfileModal } from "../components/server/ProfileModal"
 import { Dashboard } from "../components/client/Dashbaord"
-import { getEventsAndTimeZone } from "../components/server/actions"
+import { getCalendarData } from "../components/server/actions"
+import { mostRecentMonday, localTimeZone, addDateBy, formatDateToISO } from "@utils/functions"
+
+const INTIAL_RANGE: number = 14
 
 export default async function PageLayout() {
-    const info = await getEventsAndTimeZone();
-    return <Dashboard
-        FriendCards={<FriendCards />}
-        CalendarCards={<CalendarCards />}
-        ProfileModal={<ProfileModal />}
-        info={info}
-    />
+    const monday: Date = mostRecentMonday(localTimeZone());
+
+    const range: { start: string; end: string } = {
+        start: formatDateToISO(addDateBy(monday, -INTIAL_RANGE)),
+        end: formatDateToISO(addDateBy(monday, INTIAL_RANGE + 6))
+    };
+
+    const calendarData = await getCalendarData(range.start, range.end);
+
+    return (
+        <Dashboard
+            FriendCards={<FriendCards />}
+            CalendarCards={<CalendarCards />}
+            ProfileModal={<ProfileModal />}
+            initCalendarData={calendarData}
+            initRange={range}
+        />
+    );
 }

@@ -13,12 +13,14 @@ interface ActiveModalProps {
     ProfileModal: React.ReactNode;
     closeActiveModal: () => void;
     setEvent: (event: Event) => void;
+    deleteEvent: (event: Event) => void;
     clickedEvent?: Event;
     activePicker: PICKERS
     setActivePicker: (picker: PICKERS) => void;
+    timeZone: string;
 }
 
-export const ActiveModal: React.FC<ActiveModalProps> = ({ setActivePicker, activePicker, activeModal, FriendCards, CalendarCards, ProfileModal, closeActiveModal, setEvent, clickedEvent }) => {
+export const ActiveModal: React.FC<ActiveModalProps> = ({ deleteEvent, timeZone, setActivePicker, activePicker, activeModal, FriendCards, CalendarCards, ProfileModal, closeActiveModal, setEvent, clickedEvent }) => {
     const renderContent = () => {
         switch (activeModal) {
             case MODALS.EVENT:
@@ -28,6 +30,8 @@ export const ActiveModal: React.FC<ActiveModalProps> = ({ setActivePicker, activ
                     closeActiveModal={closeActiveModal}
                     setActivePicker={setActivePicker}
                     activePicker={activePicker}
+                    timeZone={timeZone}
+                    deleteEvent={deleteEvent}
                 />;
             case MODALS.FRIENDS:
                 return <FriendsModal FriendCards={FriendCards} />

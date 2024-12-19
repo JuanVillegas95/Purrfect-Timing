@@ -8,6 +8,7 @@ import {
   setDoc,
   query,
   where,
+  deleteDoc,
 } from "firebase/firestore";
 import {
   USER_ID,
@@ -15,99 +16,57 @@ import {
   CALENDAR_ID,
   DAYS,
   EVENT_NAMES,
-  EVENT_FETCH_TESHHOLDS,
+  BLANK_CALENDAR_ACTIONS_STATE,
 } from "@utils/constants";
 import { db } from "@config/firebase";
 import { parseTimeString } from "@utils/functions";
-import { Event } from "@utils/interfaces";
+import { CalendarActionsState, Event } from "@utils/interfaces";
 
-export const getEventsAndTimeZone_2 = async (
+export const getCalendarData = async (
   rangeStart: string, // Start of range (ISO string or YYYY-MM-DD)
   rangeEnd: string, // End of range (ISO string or YYYY-MM-DD)
-): Promise<{
-  timeZone: string;
-  events: { [key: string]: any }[];
-} | null> => {
+): Promise<CalendarActionsState> => {
   try {
-    // Step 1: Get Calendar Info
     const calendarDocRef = doc(db, `users/${USER_ID}/calendars/${CALENDAR_ID}`);
     const calendarDoc = await getDoc(calendarDocRef);
-
-    if (!calendarDoc.exists()) {
-      console.error("Calendar not found!");
-      return null;
-    }
 
     const calendarData = calendarDoc.data();
     const timeZone = calendarData?.timeZone || "Unknown Time Zone";
 
-    // Step 2: Fetch Standalone Events
     const eventsCollectionRef = collection(calendarDocRef, "events");
     const standaloneQuery = query(
       eventsCollectionRef,
       where("startDate", ">=", rangeStart),
       where("startDate", "<=", rangeEnd),
-      where("endDate", "==", null), // Ensures these are standalone events
+      where("endDate", "==", null),
     );
 
     const standaloneSnapshot = await getDocs(standaloneQuery);
-    const standaloneEvents = standaloneSnapshot.docs.map(doc => doc.data());
+    const singleEvents = standaloneSnapshot.docs.map(
+      doc => doc.data() as Event,
+    );
 
-    // Step 3: Fetch Recurring Events
     const recurringQuery = query(
       eventsCollectionRef,
-      where("startDate", "<=", rangeEnd), // Events that start before or during the range
-      where("endDate", ">=", rangeStart), // Events that end after or during the range
+      where("startDate", "<=", rangeEnd),
+      where("endDate", ">=", rangeStart),
     );
 
     const recurringSnapshot = await getDocs(recurringQuery);
-    const recurringEvents = recurringSnapshot.docs.map(doc => doc.data());
+    const recurringEvents = recurringSnapshot.docs.map(
+      doc => doc.data() as Event,
+    );
 
-    // Step 4: Combine Results
-    const events = [...standaloneEvents, ...recurringEvents];
-
-    return {
+    const blankCalendar: CalendarActionsState = {
+      ...BLANK_CALENDAR_ACTIONS_STATE,
+      singleEvents,
+      recurringEvents,
       timeZone,
-      events,
     };
+
+    return blankCalendar;
   } catch (error) {
-    console.error("Error retrieving calendar or events: ", error);
-    return null;
-  }
-};
-
-export const getEventsAndTimeZone = async (): Promise<{
-  timeZone: string;
-  events: { [key: string]: any }[];
-} | null> => {
-  try {
-    const calendarDocRef = doc(db, `users/${USER_ID}/calendars/${CALENDAR_ID}`);
-    const calendarDoc = await getDoc(calendarDocRef);
-
-    if (!calendarDoc.exists()) {
-      console.error("Calendar not found!");
-      return null;
-    }
-
-    const calendarData = calendarDoc.data();
-    const timeZone = calendarData?.timeZone || "Unknown Time Zone";
-    if (!calendarData?.timeZone) {
-      console.warn(
-        "Calendar time zone is missing. Defaulting to 'Unknown Time Zone'.",
-      );
-    }
-
-    const eventsCollectionRef = collection(calendarDocRef, "events");
-    const querySnapshot = await getDocs(eventsCollectionRef);
-    const events = querySnapshot.docs.map(doc => doc.data());
-
-    return {
-      timeZone,
-      events,
-    };
-  } catch (error) {
-    console.error("Error retrieving calendar or events: ", error);
-    return null;
+    return Promise.reject(error);
   }
 };
 
@@ -152,6 +111,7 @@ export const setEventServer = async (
     );
 
     if (eventId) {
+      console.log("hi", eventId);
       const docRef = doc(eventsCollectionRef, eventId);
       const existingDoc = await getDoc(docRef);
       if (existingDoc.exists()) {
@@ -171,10 +131,34 @@ export const setEventServer = async (
     }
 
     const docRef = doc(eventsCollectionRef);
-    await setDoc(docRef, newEvent);
     newEvent.eventId = docRef.id;
+    await setDoc(docRef, newEvent);
     return newEvent;
   } catch (error) {
+    return Promise.reject(error);
+  }
+};
+
+export const deleteEventServer = async (eventId: string): Promise<boolean> => {
+  try {
+    const eventsCollectionRef = collection(
+      db,
+      `users/${USER_ID}/calendars/${CALENDAR_ID}/events`,
+    );
+
+    const docRef = doc(eventsCollectionRef, eventId);
+
+    const existingDoc = await getDoc(docRef);
+    if (!existingDoc.exists()) {
+      console.warn(`Event with ID ${eventId} does not exist.`);
+      return false;
+    }
+
+    await deleteDoc(docRef);
+    console.log(`Event with ID ${eventId} has been deleted.`);
+    return true;
+  } catch (error) {
+    console.error(`Error deleting event with ID ${eventId}:`, error);
     return Promise.reject(error);
   }
 };

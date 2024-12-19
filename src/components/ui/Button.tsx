@@ -5,7 +5,7 @@ type ButtonVariants = "primary" | "secondary" | "danger";
 interface ButtonProps {
     label?: string;
     isPending?: boolean;
-    onClick?: () => void;
+    onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
     formAction?: (formData: FormData) => void;
     className?: string;
     variant?: ButtonVariants;

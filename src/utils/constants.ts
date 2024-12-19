@@ -1,4 +1,9 @@
-import { Event, User, ActionsState } from "./interfaces";
+import {
+  Event,
+  User,
+  EventActionsState,
+  CalendarActionsState,
+} from "./interfaces";
 
 export const HEADER_HEIGTH_ASIDE_WIDTH: number = 64; //multiple of 8, originally was set to 64
 export const DAYS_HEIGTH_HOURS_WIDTH: number = 84;
@@ -89,10 +94,18 @@ export const BLANK_EVENT_ERRORS = {
   [EVENT_NAMES.SELECTED_DAYS]: "",
 };
 
-export const BLANK_ACTIONS_STATE: ActionsState = {
+export const BLANK_EVENT_ACTIONS_STATE: EventActionsState = {
   error: { ...BLANK_EVENT_ERRORS },
   message: "",
   eventToSet: undefined,
+};
+
+export const BLANK_CALENDAR_ACTIONS_STATE: CalendarActionsState = {
+  // error: { ...BLANK_EVENT_ERRORS },
+  message: "",
+  singleEvents: [],
+  recurringEvents: [],
+  timeZone: "",
 };
 
 export enum EVENT_FETCH_TESHHOLDS {

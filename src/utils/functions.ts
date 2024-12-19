@@ -1,13 +1,19 @@
 import { toZonedTime } from "date-fns-tz";
-import { ActionsState, User } from "./interfaces";
+import {
+  EventActionsState,
+  Range,
+  Event,
+  CalendarActionsState,
+} from "./interfaces";
 import {
   DAYS,
   EVENT_DESCRIPTION_MAX_LENGTH,
   EVENT_TITLE_MAX_LENGTH,
   HOURS_HEIGHT_VH,
   EVENT_NAMES,
-  BLANK_ACTIONS_STATE,
+  BLANK_EVENT_ACTIONS_STATE,
   BLANK_EVENT_ERRORS,
+  EVENT_FETCH_TESHHOLDS,
 } from "@utils/constants";
 
 export const minutesToHours = (minutes: number): number => minutes / 60;
@@ -124,8 +130,8 @@ export const handleKeyboard = (callback: () => void): (() => void) => {
 };
 
 // const now: Date = toZonedTime(new Date().setHours(0, 0, 0, 0), timeZone); // MAYBE CHANGE THIS ONE
-export const mostRecentMonday = (timeZone: string): Date => {
-  const now: Date = toZonedTime(new Date(), timeZone);
+export const mostRecentMonday = (timeZone: string, date?: Date): Date => {
+  const now: Date = toZonedTime(date ? date : new Date(), timeZone);
   const daysSinceMonday: number = now.getDay() === 0 ? 6 : now.getDay() - 1;
   now.setDate(now.getDate() - daysSinceMonday);
   return now;
@@ -165,11 +171,11 @@ export const formatMonthRange = (recentMonday: Date): string => {
     : `${recentMondayShort}-${nextWeekShort}`;
 };
 
-export const formatDateToMMDDYYYY = (date: Date): string => {
+export const formatDateToISO = (date: Date): string => {
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1);
-  const day = String(date.getDate());
-  return `${month}/${day}/${year}`;
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
 export const parseTimeString = (
@@ -192,7 +198,7 @@ export const parseTimeString = (
 export const validateEventForm = (
   formData: FormData,
   isRepeating: boolean,
-): ActionsState => {
+): EventActionsState => {
   const newErrors: Record<EVENT_NAMES, string> = { ...BLANK_EVENT_ERRORS };
 
   const title = formData.get(EVENT_NAMES.TITLE) as string;
@@ -238,5 +244,101 @@ export const validateEventForm = (
     if (!flag) newErrors.SELECTED_DAYS = "At least one day must be selected.";
   }
 
-  return { ...BLANK_ACTIONS_STATE, error: newErrors };
+  return { ...BLANK_EVENT_ACTIONS_STATE, error: newErrors };
+};
+
+export const mapEventIdToEvent = (
+  calendarData: CalendarActionsState,
+): Map<string, Event> => {
+  const { singleEvents, recurringEvents } = calendarData;
+  return new Map(
+    [...singleEvents, ...recurringEvents].map((event: Event) => [
+      event.eventId,
+      event,
+    ]),
+  );
+};
+
+// Futher optimization for  recurring events mapping
+// Interval Tree
+// Depending on the datra either use a an heurisitc  you can do this absed on a cost function
+// loop (rangeStart, rangeEnd) x each event efficient in short ranges
+// loop [loopStart, loopEnd] based on event range x  each event efficient  with large ranges
+
+export const mapDateToEventIds = (
+  calendarData: CalendarActionsState,
+  range: { start: string; end: string },
+): Map<string, Set<string>> => {
+  const { singleEvents, recurringEvents } = calendarData;
+  const map = new Map<string, Set<string>>();
+
+  for (const singleEvent of singleEvents) {
+    const dateSet = map.get(singleEvent.startDate) || new Set<string>();
+    dateSet.add(singleEvent.eventId);
+    map.set(singleEvent.startDate, dateSet);
+  }
+
+  for (const recurringEvent of recurringEvents) {
+    const loopStart = new Date(
+      recurringEvent.startDate > range.start
+        ? recurringEvent.startDate
+        : range.start,
+    );
+    const loopEnd = new Date(
+      recurringEvent.endDate < range.end ? recurringEvent.endDate : range.end,
+    );
+
+    const i = new Date(loopStart);
+    while (i <= loopEnd) {
+      const dayOfTheWeek = i.getDay() === 0 ? 6 : i.getDay() - 1;
+      if (!recurringEvent.selectedDays![dayOfTheWeek]) {
+        i.setDate(i.getDate() + 1);
+        continue;
+      }
+
+      const formattedDate = formatDateToISO(i);
+      const dateSet = map.get(formattedDate) || new Set<string>();
+      dateSet.add(recurringEvent.eventId);
+      map.set(formattedDate, dateSet);
+
+      i.setDate(i.getDate() + 1);
+    }
+  }
+
+  return map;
+};
+
+export const calculateRangeDays = (start: string, end: string): number =>
+  Math.ceil(
+    (new Date(end).getTime() - new Date(start).getTime()) /
+      (1000 * 60 * 60 * 24),
+  ) + 1;
+
+export const adjustFetchRange = (
+  eventCount: number,
+  range: Range,
+  monday: Date,
+  timeZone: string,
+): Range => {
+  const currentDays: number = calculateRangeDays(range.start, range.end);
+
+  let newDays: number;
+  if (eventCount > EVENT_FETCH_TESHHOLDS.MAX_EVENTS) {
+    newDays = Math.max(EVENT_FETCH_TESHHOLDS.MIN_DAYS, currentDays / 2);
+  } else if (eventCount < EVENT_FETCH_TESHHOLDS.MIN_EVENTS) {
+    newDays = Math.min(EVENT_FETCH_TESHHOLDS.MAX_DAYS, currentDays * 1.5);
+  } else {
+    newDays = currentDays;
+  }
+
+  if (newDays === currentDays) return range;
+
+  const halfDays: number = Math.floor(newDays / 2);
+  const calculatedStart: Date = addDateBy(monday, -halfDays);
+  const calculatedEnd: Date = addDateBy(monday, halfDays);
+
+  const start: Date = mostRecentMonday(timeZone, calculatedStart);
+  const end: Date = addDateBy(mostRecentMonday(timeZone, calculatedEnd), 6);
+
+  return { start: formatDateToISO(start), end: formatDateToISO(end) };
 };

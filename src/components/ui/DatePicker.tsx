@@ -1,3 +1,4 @@
+import { formatDateToISO } from "@utils/functions";
 import React, { useState, useEffect } from "react";
 
 interface DatePickerProps {
@@ -24,7 +25,6 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
     const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
     const daysInPrevMonth = new Date(date.getFullYear(), date.getMonth(), 0).getDate();
-
     const getDays = () => {
         const days = [];
         for (let i = firstDayOfMonth; i > 0; i--) {
@@ -54,7 +54,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     };
 
     const formattedDate = selectedDate
-        ? selectedDate.toLocaleDateString("en-US")
+        ? formatDateToISO(selectedDate)
         : "";
 
     const monthYear = date.toLocaleDateString("en-US", { month: "long", year: "numeric" });

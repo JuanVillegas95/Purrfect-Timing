@@ -20,6 +20,9 @@ export const EventCard: React.FC<EventCardProps> = ({ event, editEvent }) => {
             backgroundColor: event.color,
         }}
         onClick={() => editEvent(event)}
-    />
+    >
+        <p>{event.title}</p>
+        <p>{event.description}</p>
+    </div>
 }
 
