@@ -9,7 +9,7 @@ import { setEventServer, deleteEventServer } from "../server/actions";
 import { ColorPicker } from "../ui/ColorPicker";
 import { Icon } from "../ui/Icon";
 import { DAYS, PICKERS, EVENT_NAMES, BLANK_EVENT_ACTIONS_STATE } from "@utils/constants";
-import { formatTime, validateEventForm } from "@utils/functions";
+import { addDateBy, formatTime, validateEventForm } from "@utils/functions";
 import { Event } from "@utils/interfaces";
 import { MdOutlineEventRepeat } from "react-icons/md";
 import { EventActionsState } from "@utils/interfaces"
@@ -35,11 +35,12 @@ export const EventModal: React.FC<EventModalProps> = ({
     timeZone
 }) => {
     const formRef = useRef<HTMLFormElement>(null);
-    const [isRepeating, setIsRepeating] = useState<boolean>(false);
+    const [isRepeating, setIsRepeating] = useState<boolean>(clickedEvent?.endDate ? true : false);
     const [saveState, saveAction, savePending] = useActionState(
         async (previousState: EventActionsState, formData: FormData) => {
             const actionState: EventActionsState = validateEventForm(formData, isRepeating);
             const hasErrors = Object.values(actionState.error).some((error) => error !== "");
+
             if (hasErrors) {
                 return { ...actionState, message: "Please check the highlighted fields and try again." };
             }
@@ -109,8 +110,8 @@ export const EventModal: React.FC<EventModalProps> = ({
                     placeholder="Start Date"
                     error={saveState.error.START_DATE}
                     value={clickedEvent ? toZonedTime(clickedEvent!.startDate, timeZone) : undefined}
-                    isActive={activePicker === PICKERS.DATE}
-                    open={() => setActivePicker(PICKERS.DATE)}
+                    isActive={activePicker === PICKERS.START_DATE}
+                    open={() => setActivePicker(PICKERS.START_DATE)}
                     close={() => setActivePicker(PICKERS.NONE)}
                 />
                 <TimePicker
@@ -135,10 +136,10 @@ export const EventModal: React.FC<EventModalProps> = ({
             </div>
             {isRepeating && <div className="flex gap-4">
                 <DatePicker
-                    placeholder="End Date"
                     name={EVENT_NAMES.END_DATE}
-                    error={saveState.error.REPEATING}
-                    value={toZonedTime(clickedEvent!.endDate, timeZone)}
+                    placeholder="End date"
+                    error={saveState.error.END_DATE}
+                    value={clickedEvent && clickedEvent.startDate ? toZonedTime(addDateBy(new Date(clickedEvent.startDate), 2), timeZone) : undefined}
                     isActive={activePicker === PICKERS.END_DATE}
                     open={() => setActivePicker(PICKERS.END_DATE)}
                     close={() => setActivePicker(PICKERS.NONE)}
@@ -146,6 +147,7 @@ export const EventModal: React.FC<EventModalProps> = ({
                 <SelectedDays
                     names={DAYS}
                     error={saveState.error.SELECTED_DAYS}
+                    values={clickedEvent ? clickedEvent.selectedDays! : undefined}
                 />
             </div>}
             <TextArea

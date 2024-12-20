@@ -15,6 +15,7 @@ import {
   BLANK_EVENT_ERRORS,
   EVENT_FETCH_TESHHOLDS,
 } from "@utils/constants";
+import { WeekdaySets } from "./types";
 
 export const minutesToHours = (minutes: number): number => minutes / 60;
 
@@ -208,7 +209,6 @@ export const validateEventForm = (
 
   const color = formData.get(EVENT_NAMES.COLOR) as string;
   if (!color) {
-    console.log(color);
     newErrors.COLOR = `Pick a color`;
   }
 
@@ -234,7 +234,7 @@ export const validateEventForm = (
       newErrors.END_DATE =
         "Start and end dates are required for repeating events.";
     } else if (startDate >= endDate) {
-      newErrors.REPEATING = "End date must be after start date.";
+      newErrors.END_DATE = "End date must be after start date.";
     }
     let flag: boolean = false;
     for (const day of DAYS) {
@@ -259,53 +259,124 @@ export const mapEventIdToEvent = (
   );
 };
 
-// Futher optimization for  recurring events mapping
-// Interval Tree
-// Depending on the datra either use a an heurisitc  you can do this absed on a cost function
-// loop (rangeStart, rangeEnd) x each event efficient in short ranges
-// loop [loopStart, loopEnd] based on event range x  each event efficient  with large ranges
+export const getWeekBuckets = (
+  weekStartISO: string,
+  weeklyEventsBucket: Map<string, WeekdaySets>,
+): WeekdaySets => {
+  if (!weeklyEventsBucket.has(weekStartISO)) {
+    weeklyEventsBucket.set(weekStartISO, [
+      new Set<string>(), // Monday (0)
+      new Set<string>(), // Tuesday (1)
+      new Set<string>(), // Wednesday (2)
+      new Set<string>(), // Thursday (3)
+      new Set<string>(), // Friday (4)
+      new Set<string>(), // Saturday (5)
+      new Set<string>(), // Sunday (6)
+    ]);
+  }
+  return weeklyEventsBucket.get(weekStartISO)!;
+};
 
-export const mapDateToEventIds = (
+export const getWeekStartISO = (date: Date, timeZone: string): string => {
+  const monday = mostRecentMonday(timeZone, date);
+  return formatDateToISO(monday);
+};
+
+export const addEventIdToBucket = (
+  eventId: string,
+  startDate: Date,
+  timeZone: string,
+  weeklyEventsBucket: Map<string, WeekdaySets>,
+  endDate?: Date,
+): void => {
+  const dayOfWeek = startDate.getDay() === 0 ? 6 : startDate.getDay() - 1; // Monday = 0, Sunday = 6
+  const weekStartISO: string = getWeekStartISO(startDate, timeZone);
+
+  const weekArray: WeekdaySets = getWeekBuckets(
+    weekStartISO,
+    weeklyEventsBucket,
+  );
+  weekArray[dayOfWeek].add(eventId);
+};
+
+export const deleteEventIdFromBucket = (
+  eventId: string,
+  date: Date,
+  timeZone: string,
+  weeklyEventsBucket: Map<string, WeekdaySets>,
+): boolean => {
+  const dayOfWeek = date.getDay() === 0 ? 6 : date.getDay() - 1;
+  const weekStartISO = getWeekStartISO(date, timeZone);
+  const weekArray = weeklyEventsBucket.get(weekStartISO);
+  if (!weekArray) {
+    console.log("No weekarray");
+    return false;
+  }
+
+  const a = weekArray[dayOfWeek].delete(eventId);
+
+  if (weekArray.every(daySet => daySet.size === 0))
+    weeklyEventsBucket.delete(weekStartISO);
+  console.log("deletion from weekarray:");
+  return a;
+};
+
+export const mapWeekStartToBuckets = (
   calendarData: CalendarActionsState,
   range: { start: string; end: string },
-): Map<string, Set<string>> => {
-  const { singleEvents, recurringEvents } = calendarData;
-  const map = new Map<string, Set<string>>();
+): Map<string, WeekdaySets> => {
+  const { singleEvents, recurringEvents, timeZone } = calendarData;
 
+  const weekStartToBuckets = new Map<string, WeekdaySets>();
   for (const singleEvent of singleEvents) {
-    const dateSet = map.get(singleEvent.startDate) || new Set<string>();
-    dateSet.add(singleEvent.eventId);
-    map.set(singleEvent.startDate, dateSet);
+    const eventDate = new Date(singleEvent.startDate);
+    addEventIdToBucket(
+      singleEvent.eventId,
+      toZonedTime(singleEvent.startDate, timeZone),
+      timeZone,
+      weekStartToBuckets,
+    );
   }
 
   for (const recurringEvent of recurringEvents) {
-    const loopStart = new Date(
-      recurringEvent.startDate > range.start
-        ? recurringEvent.startDate
-        : range.start,
+    const loopStart: Date = toZonedTime(
+      addDateBy(
+        new Date(
+          recurringEvent.startDate > range.start
+            ? recurringEvent.startDate
+            : range.start,
+        ),
+        1,
+      ),
+      timeZone,
     );
-    const loopEnd = new Date(
-      recurringEvent.endDate < range.end ? recurringEvent.endDate : range.end,
+    const loopEnd: Date = toZonedTime(
+      addDateBy(
+        new Date(
+          recurringEvent.endDate < range.end
+            ? recurringEvent.endDate
+            : range.end,
+        ),
+        1,
+      ),
+      timeZone,
     );
 
-    const i = new Date(loopStart);
+    const i: Date = new Date(loopStart);
     while (i <= loopEnd) {
-      const dayOfTheWeek = i.getDay() === 0 ? 6 : i.getDay() - 1;
-      if (!recurringEvent.selectedDays![dayOfTheWeek]) {
-        i.setDate(i.getDate() + 1);
-        continue;
+      const dayOfWeek = i.getDay() === 0 ? 6 : i.getDay() - 1;
+      if (recurringEvent.selectedDays![dayOfWeek]) {
+        addEventIdToBucket(
+          recurringEvent.eventId,
+          toZonedTime(i, timeZone),
+          timeZone,
+          weekStartToBuckets,
+        );
       }
-
-      const formattedDate = formatDateToISO(i);
-      const dateSet = map.get(formattedDate) || new Set<string>();
-      dateSet.add(recurringEvent.eventId);
-      map.set(formattedDate, dateSet);
-
       i.setDate(i.getDate() + 1);
     }
   }
-
-  return map;
+  return weekStartToBuckets;
 };
 
 export const calculateRangeDays = (start: string, end: string): number =>

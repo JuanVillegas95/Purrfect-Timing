@@ -5,7 +5,7 @@ interface DatePickerProps {
     placeholder?: string;
     name?: string;
     error?: string;
-    value?: Date | null;
+    value?: Date;
     isActive: boolean;
     open: () => void;
     close: () => void;
@@ -15,13 +15,13 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     placeholder = "Select a date",
     name,
     error,
-    value = null,
+    value = new Date(),
     open,
     close,
     isActive,
 }) => {
     const [date, setDate] = useState<Date>(new Date());
-    const [selectedDate, setSelectedDate] = useState<Date | null>(value);
+    const [selectedDate, setSelectedDate] = useState<Date>(value);
     const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
     const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
     const daysInPrevMonth = new Date(date.getFullYear(), date.getMonth(), 0).getDate();

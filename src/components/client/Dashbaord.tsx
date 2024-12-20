@@ -7,10 +7,12 @@ import { AsideButtons } from "./AsideButtons";
 import { ActiveModal } from "./ActiveModal";
 import { DaysOfTheWeek } from "./DaysOfTheWeek";
 import { CalendarHeader } from "./CalendarHeader";
-import { addDateBy, syncScroll, mostRecentMonday, updateTime, handleKeyboard, formatDateToISO, calculateRangeDays, adjustFetchRange, mapEventIdToEvent, mapDateToEventIds, localTimeZone } from "@utils/functions";
-import { HEADER_HEIGTH_ASIDE_WIDTH, DAYS_HEIGTH_HOURS_WIDTH, MODALS, PICKERS, BLANK_CALENDAR_ACTIONS_STATE } from "@utils/constants";
+import { addDateBy, syncScroll, mostRecentMonday, updateTime, handleKeyboard, getWeekBuckets, formatDateToISO, calculateRangeDays, adjustFetchRange, mapEventIdToEvent, mapWeekStartToBuckets, localTimeZone, deleteEventIdFromBucket, addEventIdToBucket } from "@utils/functions";
+import { HEADER_HEIGTH_ASIDE_WIDTH, DAYS_HEIGTH_HOURS_WIDTH, MODALS, PICKERS } from "@utils/constants";
 import { CalendarActionsState, Event, Range } from "@utils/interfaces";
 import { getCalendarData } from "@server/actions"
+import { WeekdaySets } from "@utils/types";
+import { toZonedTime } from "date-fns-tz";
 
 interface DashboardProps {
     FriendCards: React.ReactNode
@@ -22,8 +24,8 @@ interface DashboardProps {
 
 export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards, ProfileModal, initCalendarData, initRange }) => {
     const [eventIdToEvent, setEventIdToEvent] = useState<Map<string, Event>>(mapEventIdToEvent(initCalendarData));
-    const [dateToEventIds, setDateToEventIds] = useState<Map<string, Set<string>>>(mapDateToEventIds(initCalendarData, initRange));
-    const [range, setRange] = useState<{ start: string; end: string }>(initRange)
+    const [weekStartToBuckets, setWeekStartToBuckets] = useState<Map<string, WeekdaySets>>(mapWeekStartToBuckets(initCalendarData, initRange));
+    const [range, setRange] = useState<Range>(initRange)
     const [timeZone, setTimeZone] = useState<string>(initCalendarData.timeZone);
     const [monday, setMonday] = useState<Date>(mostRecentMonday(initCalendarData.timeZone));
     const [activePicker, setActivePicker] = useState<PICKERS>(PICKERS.NONE);
@@ -45,9 +47,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
                     range.start,
                     range.end
                 );
-
                 setEventIdToEvent(mapEventIdToEvent(calendarData));
-                setDateToEventIds(mapDateToEventIds(calendarData, range));
+                setWeekStartToBuckets(mapWeekStartToBuckets(calendarData, range));
             }
             catch (error) {
                 console.error("Error fetching calendar data:", error);
@@ -104,20 +105,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
     };
 
     const setEvent = (event: Event): void => {
-        const { eventId, startDate } = event;
-        setDateToEventIds((prev: Map<string, Set<string>>) => {
-            const updatedMap: Map<string, Set<string>> = new Map(prev);
-            if (eventIdToEvent.has(eventId)) {
+        const { eventId, startDate, endDate } = event;
+        setWeekStartToBuckets((prev: Map<string, WeekdaySets>) => {
+            const updatedMap: Map<string, WeekdaySets> = new Map(prev);
+            if (!endDate && eventIdToEvent.has(eventId)) {
                 const oldDay: string = eventIdToEvent.get(eventId)!.startDate;
                 const newDay: string = startDate;
-                if (oldDay !== newDay) {
-                    const eventSet: Set<string> = updatedMap.get(oldDay)!;
-                    eventSet.delete(eventId)
-                    if (eventSet.size === 0) updatedMap.delete(oldDay);
-                }
+                if (oldDay !== newDay)
+                    deleteEventIdFromBucket(eventId, toZonedTime(oldDay, timeZone), timeZone, updatedMap);
+
             }
-            if (!updatedMap.has(startDate)) updatedMap.set(startDate, new Set([eventId]));
-            else updatedMap.get(startDate)!.add(eventId);
+            addEventIdToBucket(eventId, toZonedTime(startDate, timeZone), timeZone, updatedMap, toZonedTime(endDate, timeZone))
             return updatedMap;
         });
 
@@ -130,11 +128,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
 
     const deleteEvent = (event: Event): void => {
         const { eventId, startDate } = event;
-        setDateToEventIds((prev: Map<string, Set<string>>) => {
-            const updatedMap: Map<string, Set<string>> = new Map(prev);
-            const eventSet: Set<string> = updatedMap.get(startDate)!;
-            eventSet.delete(eventId);
-            if (eventSet.size === 0) updatedMap.delete(startDate);
+        setWeekStartToBuckets((prev: Map<string, WeekdaySets>) => {
+            const updatedMap: Map<string, WeekdaySets> = new Map(prev);
+            deleteEventIdFromBucket(eventId, toZonedTime(startDate, timeZone), timeZone, updatedMap);
             return updatedMap;
         });
 
@@ -183,8 +179,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
                     ref={mainGridRef}
                     isLoadingEvents={isLoadingEvents}
                     monday={monday}
+                    weekBuckets={getWeekBuckets(formatDateToISO(monday), weekStartToBuckets)}
                     eventIdToEvent={eventIdToEvent}
-                    dateToEventIds={dateToEventIds}
                     editEvent={(event: Event) => {
                         setActiveModal(MODALS.EVENT);
                         setClickedEvent(event);

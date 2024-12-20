@@ -45,7 +45,6 @@ export const enum MODALS {
 
 export const enum PICKERS {
   NONE,
-  DATE,
   START_TIME,
   END_TIME,
   START_DATE,

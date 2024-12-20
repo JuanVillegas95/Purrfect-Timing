@@ -37,7 +37,6 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({ monday, calendar
             <Icon icon={FaChevronLeft} onClick={isLoadingEvents ? undefined : () => calendarNavigation("next")} />
             <Icon icon={FaChevronRight} onClick={isLoadingEvents ? undefined : () => calendarNavigation("prev")} />
             <p>{range.start}__{calculateRangeDays(range.start, range.end)}__{range.end}</p>
-
         </React.Fragment>
     </div>
 };
