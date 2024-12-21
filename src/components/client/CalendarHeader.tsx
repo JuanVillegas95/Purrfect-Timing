@@ -34,8 +34,8 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({ monday, calendar
             <p>{ianaToReadable(timeZone)}</p>
             <p onClick={isLoadingEvents ? undefined : () => calendarNavigation("today")}>Today</p>
             <p>{formatMonthRange(monday)}</p>
-            <Icon icon={FaChevronLeft} onClick={isLoadingEvents ? undefined : () => calendarNavigation("next")} />
-            <Icon icon={FaChevronRight} onClick={isLoadingEvents ? undefined : () => calendarNavigation("prev")} />
+            <Icon icon={FaChevronLeft} onClick={isLoadingEvents ? undefined : () => calendarNavigation("prev")} />
+            <Icon icon={FaChevronRight} onClick={isLoadingEvents ? undefined : () => calendarNavigation("next")} />
             <p>{range.start}__{calculateRangeDays(range.start, range.end)}__{range.end}</p>
         </React.Fragment>
     </div>

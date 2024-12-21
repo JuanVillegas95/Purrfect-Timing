@@ -9,14 +9,14 @@ import { setEventServer, deleteEventServer } from "../server/actions";
 import { ColorPicker } from "../ui/ColorPicker";
 import { Icon } from "../ui/Icon";
 import { DAYS, PICKERS, EVENT_NAMES, BLANK_EVENT_ACTIONS_STATE } from "@utils/constants";
-import { addDateBy, formatTime, validateEventForm } from "@utils/functions";
+import { formatTime, validateEventForm } from "@utils/functions";
 import { Event } from "@utils/interfaces";
 import { MdOutlineEventRepeat } from "react-icons/md";
 import { EventActionsState } from "@utils/interfaces"
 import { toZonedTime } from "date-fns-tz";
 
 interface EventModalProps {
-    setEvent: (event: Event) => void;
+    setEvent: (event: Event, isRepeating: boolean) => void;
     deleteEvent: (event: Event) => void;
     clickedEvent?: Event;
     closeActiveModal: () => void;
@@ -46,7 +46,7 @@ export const EventModal: React.FC<EventModalProps> = ({
             }
             try {
                 const eventToSet: Event = await setEventServer(formData, clickedEvent?.eventId);
-                setEvent(eventToSet);
+                setEvent(eventToSet, isRepeating);
                 closeActiveModal();
                 return { ...actionState, message: "Event saved successfully!", eventToSet };
             }
@@ -139,7 +139,7 @@ export const EventModal: React.FC<EventModalProps> = ({
                     name={EVENT_NAMES.END_DATE}
                     placeholder="End date"
                     error={saveState.error.END_DATE}
-                    value={clickedEvent && clickedEvent.startDate ? toZonedTime(addDateBy(new Date(clickedEvent.startDate), 2), timeZone) : undefined}
+                    value={clickedEvent && clickedEvent.endDate ? toZonedTime(clickedEvent.endDate, timeZone) : undefined}
                     isActive={activePicker === PICKERS.END_DATE}
                     open={() => setActivePicker(PICKERS.END_DATE)}
                     close={() => setActivePicker(PICKERS.NONE)}
@@ -156,12 +156,12 @@ export const EventModal: React.FC<EventModalProps> = ({
                 error={saveState.error.DESCRIPTION}
             />
             <div className="flex w-full gap-4">
-                <Button
+                {clickedEvent && <Button
                     label="Delete"
                     variant="secondary"
                     isPending={deletePending || savePending}
                     formAction={deleteAction}
-                />
+                />}
                 <Button
                     label="Save"
                     variant="primary"

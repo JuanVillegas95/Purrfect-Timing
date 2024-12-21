@@ -9,15 +9,16 @@ interface EventCardProps {
 
 
 export const EventCard: React.FC<EventCardProps> = ({ event, editEvent }) => {
-    const top: number = timeInVh(event.startHours, event.startMinutes);
-    const height: number = timeInVh(event.endHours, event.endMinutes) - top;
+    const { startHours, startMinutes, endMinutes, endHours, color } = event
+    const top: number = timeInVh(startHours, startMinutes);
+    const height: number = timeInVh(endHours, endMinutes) - top;
 
     return <div
-        className="absolute w-full z-10 hover:cursor-pointer rounded-md"
+        className="absolute w-full hover:cursor-pointer rounded-md"
         style={{
             top: `${top}vh`,
             height: `${height}vh`,
-            backgroundColor: event.color,
+            backgroundColor: color,
         }}
         onClick={() => editEvent(event)}
     >

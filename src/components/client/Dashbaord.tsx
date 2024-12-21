@@ -7,7 +7,7 @@ import { AsideButtons } from "./AsideButtons";
 import { ActiveModal } from "./ActiveModal";
 import { DaysOfTheWeek } from "./DaysOfTheWeek";
 import { CalendarHeader } from "./CalendarHeader";
-import { addDateBy, syncScroll, mostRecentMonday, updateTime, handleKeyboard, getWeekBuckets, formatDateToISO, calculateRangeDays, adjustFetchRange, mapEventIdToEvent, mapWeekStartToBuckets, localTimeZone, deleteEventIdFromBucket, addEventIdToBucket } from "@utils/functions";
+import { addDateBy, syncScroll, mostRecentMonday, updateTime, handleKeyboard, getWeekBuckets, formatDateToISO, calculateRangeDays, adjustFetchRange, mapEventIdToEvent, mapWeekStartToBuckets, localTimeZone, deleteEventIdFromBucket, addEventIdToBucket, getLoopStart, getLoopEnd } from "@utils/functions";
 import { HEADER_HEIGTH_ASIDE_WIDTH, DAYS_HEIGTH_HOURS_WIDTH, MODALS, PICKERS } from "@utils/constants";
 import { CalendarActionsState, Event, Range } from "@utils/interfaces";
 import { getCalendarData } from "@server/actions"
@@ -104,18 +104,59 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
         setRange(newRange);
     };
 
-    const setEvent = (event: Event): void => {
+    const setEvent = (event: Event, isRepeating: boolean): void => {
+
         const { eventId, startDate, endDate } = event;
         setWeekStartToBuckets((prev: Map<string, WeekdaySets>) => {
             const updatedMap: Map<string, WeekdaySets> = new Map(prev);
             if (!endDate && eventIdToEvent.has(eventId)) {
-                const oldDay: string = eventIdToEvent.get(eventId)!.startDate;
+                const oldEvent: Event = eventIdToEvent.get(eventId)!
+                const oldDay: string = oldEvent.startDate;
                 const newDay: string = startDate;
                 if (oldDay !== newDay)
                     deleteEventIdFromBucket(eventId, toZonedTime(oldDay, timeZone), timeZone, updatedMap);
+                if (oldEvent.endDate) {
+                    const loopStart: Date = getLoopStart(range, event, timeZone);
+                    const loopEnd: Date = getLoopEnd(range, event, timeZone);
+                    const i: Date = addDateBy(loopStart, 1)
+                    while (i <= loopEnd) {
+                        const dayOfWeek = i.getDay() === 0 ? 6 : i.getDay() - 1;
+                        if (oldEvent.selectedDays![dayOfWeek]) {
+
+                            const a = deleteEventIdFromBucket(
+                                event.eventId,
+                                toZonedTime(i, timeZone),
+                                timeZone,
+                                weekStartToBuckets,
+                            );
+                            console.log(a)
+                        }
+                        i.setDate(i.getDate() + 1);
+                    }
+                }
 
             }
-            addEventIdToBucket(eventId, toZonedTime(startDate, timeZone), timeZone, updatedMap, toZonedTime(endDate, timeZone))
+            if (!endDate) {
+                addEventIdToBucket(eventId, toZonedTime(startDate, timeZone), timeZone, updatedMap)
+            }
+            else {
+                const loopStart: Date = getLoopStart(range, event, timeZone);
+                const loopEnd: Date = getLoopEnd(range, event, timeZone);
+                const i: Date = new Date(loopStart);
+                while (i <= loopEnd) {
+                    const dayOfWeek = i.getDay() === 0 ? 6 : i.getDay() - 1;
+                    if (event.selectedDays![dayOfWeek]) {
+                        addEventIdToBucket(
+                            event.eventId,
+                            toZonedTime(i, timeZone),
+                            timeZone,
+                            weekStartToBuckets,
+                        );
+                    }
+                    i.setDate(i.getDate() + 1);
+                }
+
+            }
             return updatedMap;
         });
 
@@ -133,7 +174,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
             deleteEventIdFromBucket(eventId, toZonedTime(startDate, timeZone), timeZone, updatedMap);
             return updatedMap;
         });
-
         setEventIdToEvent((prev: Map<string, Event>) => {
             const updatedMap = new Map(prev);
             updatedMap.delete(eventId);
@@ -141,6 +181,38 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
         });
     };
 
+    const deleteEventFromWeekStartToBuckets = (eventId: string, date: Date) => setWeekStartToBuckets((prev: Map<string, WeekdaySets>) => {
+        const updatedMap: Map<string, WeekdaySets> = new Map(prev);
+        deleteEventIdFromBucket(eventId, toZonedTime(date, timeZone), timeZone, updatedMap);
+        return updatedMap;
+    });
+
+    const validateWeekBuckets = (): Event[][] => {
+        const validBuckets: Event[][] = Array.from({ length: 7 }, () => []);
+        const weekBuckets = getWeekBuckets(formatDateToISO(monday), weekStartToBuckets);
+        let currentDay: Date = toZonedTime(monday, timeZone)
+        currentDay.setHours(0, 0, 0, 0)
+        for (let i = 0; i < 7; i++) {
+            const dayOfTheWeek: Set<string> = weekBuckets[i];
+            const eventsForDay: Event[] = [];
+            for (const eventId of dayOfTheWeek) {
+                const eventToRender: Event | undefined = eventIdToEvent.get(eventId);
+                if (!eventToRender) {
+                    deleteEventFromWeekStartToBuckets(eventId, currentDay);
+                    continue;
+                }
+                if (eventToRender.endDate && (!eventToRender.selectedDays![i] || currentDay < toZonedTime(eventToRender.startDate, timeZone) || currentDay > toZonedTime(eventToRender.endDate, timeZone))) {
+                    deleteEventFromWeekStartToBuckets(eventId, currentDay);
+                    continue;
+                }
+
+                eventsForDay.push(eventToRender);
+            }
+            validBuckets[i] = eventsForDay;
+            currentDay = toZonedTime(addDateBy(currentDay, 1), timeZone)
+        }
+        return validBuckets;
+    };
 
     return <React.Fragment>
         <div
@@ -179,8 +251,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
                     ref={mainGridRef}
                     isLoadingEvents={isLoadingEvents}
                     monday={monday}
-                    weekBuckets={getWeekBuckets(formatDateToISO(monday), weekStartToBuckets)}
-                    eventIdToEvent={eventIdToEvent}
+                    weekBuckets={validateWeekBuckets()}
                     editEvent={(event: Event) => {
                         setActiveModal(MODALS.EVENT);
                         setClickedEvent(event);

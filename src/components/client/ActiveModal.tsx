@@ -12,7 +12,7 @@ interface ActiveModalProps {
     CalendarCards: React.ReactNode;
     ProfileModal: React.ReactNode;
     closeActiveModal: () => void;
-    setEvent: (event: Event) => void;
+    setEvent: (event: Event, isRepeating: boolean) => void;
     deleteEvent: (event: Event) => void;
     clickedEvent?: Event;
     activePicker: PICKERS
@@ -46,7 +46,7 @@ export const ActiveModal: React.FC<ActiveModalProps> = ({ deleteEvent, timeZone,
         }
     };
 
-    return <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50 ">
+    return <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-2147483646">
         <div className="bg-white p-8 flex items-center justify-center rounded-lg relative z-60 shadow-md">
             <button
                 className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"

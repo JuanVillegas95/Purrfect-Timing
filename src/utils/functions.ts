@@ -284,13 +284,12 @@ export const getWeekStartISO = (date: Date, timeZone: string): string => {
 
 export const addEventIdToBucket = (
   eventId: string,
-  startDate: Date,
+  date: Date,
   timeZone: string,
   weeklyEventsBucket: Map<string, WeekdaySets>,
-  endDate?: Date,
 ): void => {
-  const dayOfWeek = startDate.getDay() === 0 ? 6 : startDate.getDay() - 1; // Monday = 0, Sunday = 6
-  const weekStartISO: string = getWeekStartISO(startDate, timeZone);
+  const dayOfWeek = date.getDay() === 0 ? 6 : date.getDay() - 1; // Monday = 0, Sunday = 6
+  const weekStartISO: string = getWeekStartISO(date, timeZone);
 
   const weekArray: WeekdaySets = getWeekBuckets(
     weekStartISO,
@@ -321,6 +320,32 @@ export const deleteEventIdFromBucket = (
   return a;
 };
 
+export const getLoopStart = (
+  range: Range,
+  recurringEvent: Event,
+  timeZone: string,
+): Date => {
+  const effectiveStart =
+    recurringEvent.startDate > range.start
+      ? recurringEvent.startDate
+      : range.start;
+
+  const adjustedStart = addDateBy(new Date(effectiveStart), 1);
+  return toZonedTime(adjustedStart, timeZone);
+};
+
+export const getLoopEnd = (
+  range: Range,
+  recurringEvent: Event,
+  timeZone: string,
+): Date => {
+  const effectiveEnd =
+    recurringEvent.endDate < range.end ? recurringEvent.endDate : range.end;
+
+  const adjustedEnd = addDateBy(new Date(effectiveEnd), 1);
+  return toZonedTime(adjustedEnd, timeZone);
+};
+
 export const mapWeekStartToBuckets = (
   calendarData: CalendarActionsState,
   range: { start: string; end: string },
@@ -329,7 +354,6 @@ export const mapWeekStartToBuckets = (
 
   const weekStartToBuckets = new Map<string, WeekdaySets>();
   for (const singleEvent of singleEvents) {
-    const eventDate = new Date(singleEvent.startDate);
     addEventIdToBucket(
       singleEvent.eventId,
       toZonedTime(singleEvent.startDate, timeZone),
@@ -339,29 +363,8 @@ export const mapWeekStartToBuckets = (
   }
 
   for (const recurringEvent of recurringEvents) {
-    const loopStart: Date = toZonedTime(
-      addDateBy(
-        new Date(
-          recurringEvent.startDate > range.start
-            ? recurringEvent.startDate
-            : range.start,
-        ),
-        1,
-      ),
-      timeZone,
-    );
-    const loopEnd: Date = toZonedTime(
-      addDateBy(
-        new Date(
-          recurringEvent.endDate < range.end
-            ? recurringEvent.endDate
-            : range.end,
-        ),
-        1,
-      ),
-      timeZone,
-    );
-
+    const loopStart: Date = getLoopStart(range, recurringEvent, timeZone);
+    const loopEnd: Date = getLoopEnd(range, recurringEvent, timeZone);
     const i: Date = new Date(loopStart);
     while (i <= loopEnd) {
       const dayOfWeek = i.getDay() === 0 ? 6 : i.getDay() - 1;
@@ -412,4 +415,45 @@ export const adjustFetchRange = (
   const end: Date = addDateBy(mostRecentMonday(timeZone, calculatedEnd), 6);
 
   return { start: formatDateToISO(start), end: formatDateToISO(end) };
+};
+
+export const areEventsOverlapping = (first: Event, second: Event): boolean => {
+  const firstStart: number = timeInMinutes(
+    first.startHours,
+    first.startMinutes,
+  );
+  const firstEnd: number = timeInMinutes(first.endHours, first.endMinutes);
+  const secondStart: number = timeInMinutes(
+    second.startHours,
+    second.startMinutes,
+  );
+  const secondEnd: number = timeInMinutes(second.endHours, second.endMinutes);
+  return firstStart < secondEnd && secondStart < firstEnd;
+};
+
+export const createColumnsForDay = (dayEvents: Event[]): Event[][] => {
+  dayEvents.sort((a: Event, b: Event) => {
+    const aStart: number = timeInMinutes(a.startHours, a.startMinutes);
+    const bStart: number = timeInMinutes(b.startHours, b.startMinutes);
+    return aStart - bStart;
+  });
+
+  const columns: Event[][] = [];
+
+  for (const event of dayEvents) {
+    let placed = false;
+    for (const col of columns) {
+      const lastEventInCol = col[col.length - 1];
+      if (!areEventsOverlapping(lastEventInCol, event)) {
+        col.push(event);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      columns.push([event]);
+    }
+  }
+
+  return columns;
 };

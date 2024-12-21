@@ -111,7 +111,6 @@ export const setEventServer = async (
     );
 
     if (eventId) {
-      console.log("hi", eventId);
       const docRef = doc(eventsCollectionRef, eventId);
       const existingDoc = await getDoc(docRef);
       if (existingDoc.exists()) {
