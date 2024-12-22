@@ -16,13 +16,13 @@ import { toZonedTime } from "date-fns-tz";
 
 interface DashboardProps {
     FriendCards: React.ReactNode
-    CalendarCards: React.ReactNode
     ProfileModal: React.ReactNode
     initCalendarData: CalendarActionsState
     initRange: { start: string, end: string }
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards, ProfileModal, initCalendarData, initRange }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, ProfileModal, initCalendarData, initRange }) => {
+    const [currentCalendarId, setCurrentCalendarId] = useState<string>(initCalendarData.calendarId)
     const [eventIdToEvent, setEventIdToEvent] = useState<Map<string, Event>>(mapEventIdToEvent(initCalendarData));
     const [weekStartToBuckets, setWeekStartToBuckets] = useState<Map<string, WeekdaySets>>(mapWeekStartToBuckets(initCalendarData, initRange));
     const [range, setRange] = useState<Range>(initRange)
@@ -40,7 +40,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
             console.log("No need of refetching")
             return;
         }
-        const fetchCalendarData = async () => {
+        const fetchCalendarData = async (): Promise<void> => {
             setIsLoadingEvents(true);
             try {
                 const calendarData: CalendarActionsState = await getCalendarData(
@@ -60,8 +60,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
         fetchCalendarData();
     }, [range]);
 
-
-
     useEffect(() => {
         const cleanupScroll = syncScroll(hoursOfTheDayRef, mainGridRef);
         const cleanupTime = updateTime(() => setMonday(mostRecentMonday(timeZone)));
@@ -74,6 +72,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
         };
     }, []);
 
+    const switchCalendar = async (calendarId: string): Promise<void> => {
+        const calendarData: CalendarActionsState = await getCalendarData(
+            range.start,
+            range.end,
+            calendarId
+        );
+        setEventIdToEvent(mapEventIdToEvent(calendarData));
+        setWeekStartToBuckets(mapWeekStartToBuckets(calendarData, range));
+        setCurrentCalendarId(calendarId);
+    }
     function closeModal(): void {
         setActiveModal(MODALS.NONE)
         setActivePicker(PICKERS.NONE)
@@ -262,7 +270,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
                 activeModal !== MODALS.NONE && <ActiveModal
                     activeModal={activeModal}
                     FriendCards={FriendCards}
-                    CalendarCards={CalendarCards}
                     ProfileModal={ProfileModal}
                     setEvent={setEvent}
                     deleteEvent={deleteEvent}
@@ -271,6 +278,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, CalendarCards
                     timeZone={timeZone}
                     setActivePicker={(picker: PICKERS) => setActivePicker(picker)}
                     closeActiveModal={closeModal}
+                    switchCalendar={switchCalendar}
+                    calendarId={currentCalendarId}
                 />
             }
         </div >

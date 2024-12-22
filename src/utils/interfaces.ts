@@ -41,14 +41,20 @@ export interface EventActionsState {
 }
 
 export interface CalendarActionsState {
-  // error: Record<EVENT_NAMES, string>;
   singleEvents: Event[];
   recurringEvents: Event[];
   message: string;
   timeZone: string;
+  calendarId: string;
 }
 
 export interface Range {
   start: string;
   end: string;
+}
+
+export interface UserCalendarActionsState {
+  id: string;
+  name: string;
+  timeZone: string;
 }

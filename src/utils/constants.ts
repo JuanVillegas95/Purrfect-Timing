@@ -3,6 +3,7 @@ import {
   User,
   EventActionsState,
   CalendarActionsState,
+  UserCalendarActionsState,
 } from "./interfaces";
 
 export const HEADER_HEIGTH_ASIDE_WIDTH: number = 64; //multiple of 8, originally was set to 64
@@ -105,6 +106,7 @@ export const BLANK_CALENDAR_ACTIONS_STATE: CalendarActionsState = {
   singleEvents: [],
   recurringEvents: [],
   timeZone: "",
+  calendarId: "",
 };
 
 export enum EVENT_FETCH_TESHHOLDS {
@@ -113,3 +115,9 @@ export enum EVENT_FETCH_TESHHOLDS {
   MIN_DAYS = 7,
   MAX_DAYS = 30,
 }
+
+export const BLANK_USER_CALENDAR_ACTION_STATE: UserCalendarActionsState = {
+  id: "",
+  name: "",
+  timeZone: "",
+};

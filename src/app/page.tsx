@@ -1,5 +1,5 @@
 import { FriendCards } from "../components/server/FriendCards"
-import { CalendarCards } from "../components/server/CalendarCards"
+import { CalendarModalServer } from "../components/server/CalendarModalServer"
 import { ProfileModal } from "../components/server/ProfileModal"
 import { Dashboard } from "../components/client/Dashbaord"
 import { getCalendarData } from "../components/server/actions"
@@ -20,7 +20,7 @@ export default async function PageLayout() {
     return (
         <Dashboard
             FriendCards={<FriendCards />}
-            CalendarCards={<CalendarCards />}
+            CalendarModalServer={<CalendarModalServer />}
             ProfileModal={<ProfileModal />}
             initCalendarData={calendarData}
             initRange={range}

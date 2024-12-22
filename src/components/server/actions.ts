@@ -9,6 +9,8 @@ import {
   query,
   where,
   deleteDoc,
+  DocumentData,
+  DocumentSnapshot,
 } from "firebase/firestore";
 import {
   USER_ID,
@@ -20,20 +22,63 @@ import {
 } from "@utils/constants";
 import { db } from "@config/firebase";
 import { parseTimeString } from "@utils/functions";
-import { CalendarActionsState, Event } from "@utils/interfaces";
+import {
+  CalendarActionsState,
+  Event,
+  UserCalendarActionsState,
+} from "@utils/interfaces";
+
+export const getUserCalendars = async (): Promise<
+  UserCalendarActionsState[]
+> => {
+  try {
+    const calendarCollectionRef = collection(db, `users/${USER_ID}/calendars`);
+    const querySnapshot = await getDocs(calendarCollectionRef);
+
+    const calendars = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      name: doc.data().name,
+      timeZone: doc.data().timeZone,
+    }));
+
+    return calendars;
+  } catch (error) {
+    return Promise.reject(error);
+  }
+};
 
 export const getCalendarData = async (
   rangeStart: string, // Start of range (ISO string or YYYY-MM-DD)
   rangeEnd: string, // End of range (ISO string or YYYY-MM-DD)
+  calendarId?: string,
 ): Promise<CalendarActionsState> => {
   try {
-    const calendarDocRef = doc(db, `users/${USER_ID}/calendars/${CALENDAR_ID}`);
-    const calendarDoc = await getDoc(calendarDocRef);
+    if (!calendarId) {
+      const calendarsCollectionRef = collection(
+        db,
+        `users/${USER_ID}/calendars`,
+      );
+      const calendarsSnapshot = await getDocs(calendarsCollectionRef);
 
-    const calendarData = calendarDoc.data();
-    const timeZone = calendarData?.timeZone || "Unknown Time Zone";
+      if (calendarsSnapshot.empty) {
+        throw new Error("No calendars found for this user.");
+      }
+
+      calendarId = calendarsSnapshot.docs[0].id;
+    }
+
+    const calendarDocRef = doc(db, `users/${USER_ID}/calendars/${calendarId}`);
+    const calendarSnap = await getDoc(calendarDocRef);
+    const calendarData = calendarSnap.data();
+
+    if (!calendarData) {
+      throw new Error("Calendar data is empty or undefined.");
+    }
+
+    const timeZone = calendarData.timeZone || "Unknown Time Zone";
 
     const eventsCollectionRef = collection(calendarDocRef, "events");
+
     const standaloneQuery = query(
       eventsCollectionRef,
       where("startDate", ">=", rangeStart),
@@ -62,9 +107,36 @@ export const getCalendarData = async (
       singleEvents,
       recurringEvents,
       timeZone,
+      calendarId,
     };
 
     return blankCalendar;
+  } catch (error) {
+    return Promise.reject(error);
+  }
+};
+
+export const getCalendarActionsState = async (): Promise<
+  UserCalendarActionsState[]
+> => {
+  try {
+    const calendarsCollectionRef = collection(db, `users/${USER_ID}/calendars`);
+    const calendarsSnapshot = await getDocs(calendarsCollectionRef);
+
+    if (calendarsSnapshot.empty) {
+      throw new Error("No calendars found for this user.");
+    }
+
+    const mappedDocs = calendarsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.name || "",
+        timeZone: data.timeZone || "",
+      };
+    });
+
+    return mappedDocs;
   } catch (error) {
     return Promise.reject(error);
   }

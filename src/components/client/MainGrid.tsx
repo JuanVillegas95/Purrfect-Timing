@@ -23,29 +23,30 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
             className="grid grid-cols-7 border border-black overflow-scroll h-full relative"
             style={{ maxHeight: "calc(100vh - 10vh)" }}
         >
-            {weekBuckets.map((weekBucket: Event[], i: number) => {
+            {weekBuckets.map((weekBucket: Event[], bucketIndex: number) => {
                 const columns: Event[][] = createColumnsForDay(weekBucket);
 
-                return <div key={i} data-key={i} className="relative">
-                    {Array.from({ length: 48 }, (_: unknown, j: number) => (
-                        <div
-                            key={`${i}-${j}`}
-                            className="border border-black w-full"
-                            style={{
-                                height: `calc(${HOURS_HEIGHT_VH}vh / 2)`,
-                                flexShrink: 0,
-                            }}
-                        />
-                    ))}
-                    {weekBucket.map((event: Event, k: number) => {
-
-                        return <EventCard
+                return <div key={bucketIndex} className="relative">
+                    {columns.map((column: Event[], columnIndex: number) => {
+                        const totalColumns: number = columns.length;
+                        return column.map((event: Event, eventIndex: number) => <EventCard
                             event={event}
-                            key={`${i}-${k}`}
+                            key={`${bucketIndex}-${columnIndex}-${eventIndex}`}
                             editEvent={editEvent}
+                            left={`${(columnIndex / totalColumns) * 100}%`}
+                            width={`${100 / totalColumns}%`}
                         />
-                    }
-                    )}
+                        )
+                    })}
+
+                    {Array.from({ length: 48 }, (_: unknown, slotIndex: number) => <div
+                        key={`${bucketIndex}-${slotIndex}`}
+                        className="border border-black w-full"
+                        style={{
+                            height: `calc(${HOURS_HEIGHT_VH}vh / 2)`,
+                            flexShrink: 0,
+                        }}
+                    />)}
                 </div>
             })}
         </div>

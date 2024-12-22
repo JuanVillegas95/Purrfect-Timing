@@ -2,14 +2,13 @@ import React, { useState } from "react";
 import { MODALS, PICKERS } from "@utils/constants";
 import { FriendsModal } from "./FriendsModal";
 import { EventModal } from "./EventModal";
-import { CalendarsModals } from "./CalendarsModals"
 import { AboutUsModal } from "./AboutUsModal";
 import { Event } from "@utils/interfaces";
+import { CalendarModal } from "./CalendarModal";
 
 interface ActiveModalProps {
     activeModal: MODALS;
     FriendCards: React.ReactNode;
-    CalendarCards: React.ReactNode;
     ProfileModal: React.ReactNode;
     closeActiveModal: () => void;
     setEvent: (event: Event, isRepeating: boolean) => void;
@@ -18,9 +17,11 @@ interface ActiveModalProps {
     activePicker: PICKERS
     setActivePicker: (picker: PICKERS) => void;
     timeZone: string;
+    switchCalendar: (calendarId: string) => Promise<void>
+    calendarId: string;
 }
 
-export const ActiveModal: React.FC<ActiveModalProps> = ({ deleteEvent, timeZone, setActivePicker, activePicker, activeModal, FriendCards, CalendarCards, ProfileModal, closeActiveModal, setEvent, clickedEvent }) => {
+export const ActiveModal: React.FC<ActiveModalProps> = ({ deleteEvent, timeZone, setActivePicker, activePicker, activeModal, FriendCards, ProfileModal, closeActiveModal, setEvent, clickedEvent, switchCalendar, calendarId }) => {
     const renderContent = () => {
         switch (activeModal) {
             case MODALS.EVENT:
@@ -36,7 +37,7 @@ export const ActiveModal: React.FC<ActiveModalProps> = ({ deleteEvent, timeZone,
             case MODALS.FRIENDS:
                 return <FriendsModal FriendCards={FriendCards} />
             case MODALS.CALENDARS:
-                return <CalendarsModals CalendarCards={CalendarCards} />
+                return <CalendarModal calendarId={calendarId} switchCalendar={switchCalendar} />
             case MODALS.PROFILE:
                 return <div>{ProfileModal}</div>
             case MODALS.ABOUT_US:

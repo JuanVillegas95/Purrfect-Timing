@@ -5,10 +5,12 @@ import { timeInVh } from "@utils/functions";
 interface EventCardProps {
     event: Event
     editEvent: (event: Event) => void;
+    left: string;
+    width: string
 }
 
 
-export const EventCard: React.FC<EventCardProps> = ({ event, editEvent }) => {
+export const EventCard: React.FC<EventCardProps> = ({ event, editEvent, left, width }) => {
     const { startHours, startMinutes, endMinutes, endHours, color } = event
     const top: number = timeInVh(startHours, startMinutes);
     const height: number = timeInVh(endHours, endMinutes) - top;
@@ -19,6 +21,8 @@ export const EventCard: React.FC<EventCardProps> = ({ event, editEvent }) => {
             top: `${top}vh`,
             height: `${height}vh`,
             backgroundColor: color,
+            left,
+            width
         }}
         onClick={() => editEvent(event)}
     >
