@@ -6,6 +6,8 @@ import { LOGO_SIZE } from "@utils/constants";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa6";
 import { calculateRangeDays, formatMonthRange, ianaToReadable, timeToTwoDigits } from "@utils/functions";
 import { Range } from "@utils/interfaces";
+import { TimeZonePicker } from "@ui/TimeZonePicker"
+
 interface CalendarHeaderProps {
     monday: Date
     calendarNavigation: (direction: "next" | "prev" | "today") => void
@@ -13,7 +15,6 @@ interface CalendarHeaderProps {
     isLoadingEvents: boolean
     range: Range
 }
-
 export const CalendarHeader: React.FC<CalendarHeaderProps> = ({ monday, calendarNavigation, timeZone, isLoadingEvents, range }) => {
 
     return <div className="flex items-center justify-start gap-4">

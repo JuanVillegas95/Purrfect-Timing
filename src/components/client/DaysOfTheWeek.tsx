@@ -17,6 +17,7 @@ export const DaysOfTheWeek: React.FC<DaysOfTheWeekProps> = ({ monday }) => (
         className="border border-black text-center flex-1"
       >
         {dayOfTheMonth}
+        <br />
         {day}
       </div>
     })}

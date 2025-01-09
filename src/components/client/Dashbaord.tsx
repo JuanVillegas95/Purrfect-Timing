@@ -1,4 +1,3 @@
-
 "use client"
 import React, { useRef, useState, useEffect, useActionState } from "react";
 import { HoursOfTheDay } from "./HoursOfTheDay";
@@ -7,64 +6,39 @@ import { AsideButtons } from "./AsideButtons";
 import { ActiveModal } from "./ActiveModal";
 import { DaysOfTheWeek } from "./DaysOfTheWeek";
 import { CalendarHeader } from "./CalendarHeader";
-import { addDateBy, syncScroll, mostRecentMonday, updateTime, handleKeyboard, getWeekBuckets, formatDateToISO, calculateRangeDays, adjustFetchRange, mapEventIdToEvent, mapWeekStartToBuckets, localTimeZone, deleteEventIdFromBucket, addEventIdToBucket, getLoopStart, getLoopEnd } from "@utils/functions";
-import { HEADER_HEIGTH_ASIDE_WIDTH, DAYS_HEIGTH_HOURS_WIDTH, MODALS, PICKERS } from "@utils/constants";
-import { CalendarActionsState, Event, Range } from "@utils/interfaces";
-import { getCalendarData } from "@server/actions"
+import { addDateBy, syncScroll, mostRecentMonday, updateTime, handleKeyboard, getWeekBuckets, formatDateToISO, calculateRangeDays, adjustFetchRange, mapEventIdToEvent, mapWeekStartToBuckets, localTimeZone, deleteEventIdFromBucket, addEventIdToBucket, getLoopStart, getLoopEnd, getISORange, fromZonedToZoned, getPaddingFromRange, fromUTCEventToZonedEvent, timeInMinutes } from "@utils/functions";
+import { HEADER_HEIGTH_ASIDE_WIDTH, DAYS_HEIGTH_HOURS_WIDTH, MODALS, PICKERS, INTIAL_RANGE } from "@utils/constants";
+import { CalendarActionsState, Event, InitialFetch, Range, FetchedEvents } from "@utils/interfaces";
 import { WeekdaySets } from "@utils/types";
 import { toZonedTime } from "date-fns-tz";
+import { auth, db } from "@db/firebaseClient";
+import { collection, doc, getDoc, onSnapshot, query, where } from "firebase/firestore";
+import { generateEventId, getEvents } from "@db/clientActions";
 
 interface DashboardProps {
-    FriendCards: React.ReactNode
-    ProfileModal: React.ReactNode
-    initCalendarData: CalendarActionsState
-    initRange: { start: string, end: string }
+    initCalendarData: InitialFetch
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, ProfileModal, initCalendarData, initRange }) => {
-    const [currentCalendarId, setCurrentCalendarId] = useState<string>(initCalendarData.calendarId)
-    const [eventIdToEvent, setEventIdToEvent] = useState<Map<string, Event>>(mapEventIdToEvent(initCalendarData));
-    const [weekStartToBuckets, setWeekStartToBuckets] = useState<Map<string, WeekdaySets>>(mapWeekStartToBuckets(initCalendarData, initRange));
-    const [range, setRange] = useState<Range>(initRange)
-    const [timeZone, setTimeZone] = useState<string>(initCalendarData.timeZone);
-    const [monday, setMonday] = useState<Date>(mostRecentMonday(initCalendarData.timeZone));
+export const Dashboard: React.FC<DashboardProps> = ({ initCalendarData: { initialCalendarId, initalRecurring, initalSingle } }) => {
+    const [currentCalendarId, setCurrentCalendarId] = useState<string>(initialCalendarId)
+    const [currentTimeZone, setCurrentTimeZone] = useState<string>(localTimeZone());
+    const [range, setRange] = useState<Range>(getISORange(INTIAL_RANGE, currentTimeZone))
+    const [eventIdToEvent, setEventIdToEvent] = useState<Map<string, Event>>(mapEventIdToEvent(initalSingle, initalRecurring, localTimeZone()));
+    const [weekStartToBuckets, setWeekStartToBuckets] = useState<Map<string, WeekdaySets>>(mapWeekStartToBuckets([...eventIdToEvent.values()], range, currentTimeZone));
+
+    const [monday, setMonday] = useState<Date>(mostRecentMonday(localTimeZone()))
     const [activePicker, setActivePicker] = useState<PICKERS>(PICKERS.NONE);
     const [activeModal, setActiveModal] = useState<MODALS>(MODALS.NONE)
-    const [clickedEvent, setClickedEvent] = useState<Event>()
+    const [currentEvent, setCurrentEvent] = useState<Event>();
     const [isLoadingEvents, setIsLoadingEvents] = useState<boolean>(false);
     const hoursOfTheDayRef = useRef<HTMLDivElement>(null);
     const mainGridRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (monday >= new Date(range.start) && monday <= new Date(range.end)) {
-            console.log("No need of refetching")
-            return;
-        }
-        const fetchCalendarData = async (): Promise<void> => {
-            setIsLoadingEvents(true);
-            try {
-                const calendarData: CalendarActionsState = await getCalendarData(
-                    range.start,
-                    range.end
-                );
-                setEventIdToEvent(mapEventIdToEvent(calendarData));
-                setWeekStartToBuckets(mapWeekStartToBuckets(calendarData, range));
-            }
-            catch (error) {
-                console.error("Error fetching calendar data:", error);
-            }
-            finally {
-                setIsLoadingEvents(false);
-            }
-        };
-        fetchCalendarData();
-    }, [range]);
-
-    useEffect(() => {
         const cleanupScroll = syncScroll(hoursOfTheDayRef, mainGridRef);
-        const cleanupTime = updateTime(() => setMonday(mostRecentMonday(timeZone)));
+        const cleanupTime = updateTime(() => setMonday(mostRecentMonday(currentTimeZone)));
         const cleanupKeyboard = handleKeyboard(closeModal)
-
+        setMonday(mostRecentMonday(localTimeZone()))
         return () => {
             cleanupScroll();
             cleanupTime();
@@ -72,23 +46,111 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, ProfileModal,
         };
     }, []);
 
-    const switchCalendar = async (calendarId: string): Promise<void> => {
-        const calendarData: CalendarActionsState = await getCalendarData(
-            range.start,
-            range.end,
-            calendarId
-        );
-        setEventIdToEvent(mapEventIdToEvent(calendarData));
-        setWeekStartToBuckets(mapWeekStartToBuckets(calendarData, range));
-        setCurrentCalendarId(calendarId);
-    }
-    function closeModal(): void {
-        setActiveModal(MODALS.NONE)
-        setActivePicker(PICKERS.NONE)
-        setClickedEvent(undefined)
+    // useEffect(() => {
+    //     const singleEventsQuery = query(
+    //         collection(db, `calendars/${currentCalendarId}/events`),
+    //         where("startDate", ">=", range.start),
+    //         where("startDate", "<=", range.end),
+    //         where("endDate", "==", null)
+    //     );
+
+    //     const unsubSingle = onSnapshot(singleEventsQuery, (snapshot) => {
+    //         snapshot.docChanges().forEach((change) => {
+    //             const changedSingle: Event = fromUTCEventToZonedEvent({ eventId: change.doc.id, ...change.doc.data() } as Event, currentTimeZone)
+    //             switch (change.type) {
+    //                 case "added":
+    //                     createSingleEvent(changedSingle)
+    //                     break;
+    //                 case "modified":
+    //                     updateSingleEvent(changedSingle)
+
+    //                     break;
+    //                 case "removed":
+    //                     deleteSingleEvent(changedSingle)
+    //                     break;
+    //             }
+    //         });
+    //     });
+
+    //     const recurringQuery = query(
+    //         collection(db, `calendars/${currentCalendarId}/events`),
+    //         where("startDate", "<=", range.end),
+    //         where("endDate", ">=", range.start),
+    //     );
+
+    //     const unsubRecurring = onSnapshot(recurringQuery, (snapshot) => {
+    //         snapshot.docChanges().forEach((change) => {
+    //             const changedRecurring: Event = fromUTCEventToZonedEvent({ eventId: change.doc.id, ...change.doc.data() } as Event, currentTimeZone)
+    //             switch (change.type) {
+    //                 case "added":
+    //                     createRecurringEvent(changedRecurring)
+    //                     break;
+    //                 case "modified":
+    //                     updateRecurringEvent(changedRecurring)
+    //                     break;
+    //                 case "removed":
+    //                     deleteRecurringEvent(changedRecurring)
+    //                     break;
+    //             }
+    //         });
+    //     });
+
+    //     return () => {
+    //         unsubSingle();
+    //         unsubRecurring();
+    //     };
+    // }, [currentCalendarId, range]);
+
+
+
+    const fetchCalendarEvents = async (calendarId: string, range: Range, timeZone: string): Promise<FetchedEvents | null> => {
+        setIsLoadingEvents(true);
+        try {
+            return await getEvents(calendarId, range, timeZone);
+        }
+        catch (error) {
+            console.error("Error fetching calendar data:", error);
+            return null
+        }
+        finally {
+            setIsLoadingEvents(false);
+        }
+    };
+
+
+    const switchTimeZone = async (newTimeZone: string): Promise<void> => {
+        const padding: number = getPaddingFromRange(range);
+        const newRange: Range = getISORange(padding, newTimeZone)
+        const newMonday: Date = mostRecentMonday(newTimeZone);
+        const fetchedEvents: FetchedEvents | null = await fetchCalendarEvents(currentCalendarId, newRange, newTimeZone);
+        if (!fetchedEvents) {
+            console.log("error")
+            return
+        }
+        setEventIdToEvent(mapEventIdToEvent(fetchedEvents.single, fetchedEvents.recurring, newTimeZone))
+        setWeekStartToBuckets(mapWeekStartToBuckets([...fetchedEvents.single, ...fetchedEvents.recurring], range, newTimeZone))
+        setCurrentTimeZone(newTimeZone)
+        setMonday(newMonday);
+        setRange(newRange);
     }
 
-    const calendarNavigation = (direction: "next" | "prev" | "today"): void => {
+    const switchCalendar = async (newCalendarId: string): Promise<void> => {
+        const padding: number = getPaddingFromRange(range);
+        const newRange: Range = getISORange(padding, currentTimeZone)
+        const newMonday: Date = mostRecentMonday(currentTimeZone);
+        const fetchedEvents: FetchedEvents | null = await fetchCalendarEvents(newCalendarId, newRange, currentTimeZone);
+        if (!fetchedEvents) {
+            console.log("error")
+            return
+        }
+        setEventIdToEvent(mapEventIdToEvent(fetchedEvents.single, fetchedEvents.recurring, currentTimeZone))
+        setWeekStartToBuckets(mapWeekStartToBuckets([...eventIdToEvent.values()], range, currentTimeZone))
+        setCurrentCalendarId(newCalendarId)
+        setMonday(newMonday);
+        setRange(newRange);
+    }
+
+    const calendarNavigation = async (direction: "next" | "prev" | "today"): Promise<void> => {
         let newMonday: Date;
         switch (direction) {
             case "next":
@@ -98,129 +160,127 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, ProfileModal,
                 newMonday = addDateBy(monday, -7);
                 break;
             case "today":
-                newMonday = mostRecentMonday(timeZone);
+                newMonday = mostRecentMonday(currentTimeZone);
                 break;
         }
         setMonday(newMonday);
-        if (newMonday <= new Date(range.start) || newMonday >= new Date(range.end)) return;
+
+        const outOfRange: boolean = newMonday < new Date(range.start) || newMonday > new Date(range.end);
+        if (!outOfRange) return;
         const newRange: Range = adjustFetchRange(
             eventIdToEvent.size,
             range,
             monday,
-            localTimeZone()
+            currentTimeZone
         );
+        const fetchedEvents: FetchedEvents | null = await fetchCalendarEvents(currentCalendarId, newRange, currentTimeZone);
+        if (!fetchedEvents) {
+            console.log("error")
+            return
+        }
+        setEventIdToEvent(mapEventIdToEvent(fetchedEvents.single, fetchedEvents.recurring, currentTimeZone))
         setRange(newRange);
-    };
+    }
 
-    const setEvent = (event: Event, isRepeating: boolean): void => {
+    const closeModal = (): void => {
+        setActiveModal(MODALS.NONE)
+        setActivePicker(PICKERS.NONE)
+        setCurrentEvent(undefined)
+    }
 
-        const { eventId, startDate, endDate } = event;
+    function setSingleEvent(eventToSet: Event): void {
         setWeekStartToBuckets((prev: Map<string, WeekdaySets>) => {
-            const updatedMap: Map<string, WeekdaySets> = new Map(prev);
-            if (!endDate && eventIdToEvent.has(eventId)) {
-                const oldEvent: Event = eventIdToEvent.get(eventId)!
-                const oldDay: string = oldEvent.startDate;
-                const newDay: string = startDate;
-                if (oldDay !== newDay)
-                    deleteEventIdFromBucket(eventId, toZonedTime(oldDay, timeZone), timeZone, updatedMap);
-                if (oldEvent.endDate) {
-                    const loopStart: Date = getLoopStart(range, event, timeZone);
-                    const loopEnd: Date = getLoopEnd(range, event, timeZone);
-                    const i: Date = addDateBy(loopStart, 1)
-                    while (i <= loopEnd) {
-                        const dayOfWeek = i.getDay() === 0 ? 6 : i.getDay() - 1;
-                        if (oldEvent.selectedDays![dayOfWeek]) {
+            const updatedMap = new Map(prev);
+            const oldEvent: Event | undefined = eventIdToEvent?.get(eventToSet.eventId);
 
-                            const a = deleteEventIdFromBucket(
-                                event.eventId,
-                                toZonedTime(i, timeZone),
-                                timeZone,
-                                weekStartToBuckets,
-                            );
-                            console.log(a)
-                        }
-                        i.setDate(i.getDate() + 1);
-                    }
-                }
-
-            }
-            if (!endDate) {
-                addEventIdToBucket(eventId, toZonedTime(startDate, timeZone), timeZone, updatedMap)
+            if (!oldEvent) {
+                addEventIdToBucket(
+                    eventToSet.eventId,
+                    new Date(eventToSet.startDate),
+                    currentTimeZone,
+                    updatedMap
+                );
             }
             else {
-                const loopStart: Date = getLoopStart(range, event, timeZone);
-                const loopEnd: Date = getLoopEnd(range, event, timeZone);
-                const i: Date = new Date(loopStart);
-                while (i <= loopEnd) {
-                    const dayOfWeek = i.getDay() === 0 ? 6 : i.getDay() - 1;
-                    if (event.selectedDays![dayOfWeek]) {
-                        addEventIdToBucket(
-                            event.eventId,
-                            toZonedTime(i, timeZone),
-                            timeZone,
-                            weekStartToBuckets,
-                        );
-                    }
-                    i.setDate(i.getDate() + 1);
+                const oldDay = oldEvent.startDate;
+                const newDay = eventToSet.startDate;
+
+                if (oldDay !== newDay) {
+                    deleteEventIdFromBucket(
+                        oldEvent.eventId,
+                        new Date(oldDay),
+                        currentTimeZone,
+                        updatedMap
+                    );
+                    addEventIdToBucket(
+                        eventToSet.eventId,
+                        new Date(newDay),
+                        currentTimeZone,
+                        updatedMap
+                    );
                 }
-
             }
+
             return updatedMap;
         });
 
-        setEventIdToEvent((prev: Map<string, Event>) => {
+        setEventIdToEvent((prev: Map<string, Event> | undefined) => {
             const updatedMap = new Map(prev);
-            updatedMap.set(eventId, event);
+            updatedMap.set(eventToSet.eventId, eventToSet);
             return updatedMap;
         });
-    };
+    }
 
-    const deleteEvent = (event: Event): void => {
-        const { eventId, startDate } = event;
+    const deleteSingleEvent = (eventToDelete: Event): void => {
         setWeekStartToBuckets((prev: Map<string, WeekdaySets>) => {
             const updatedMap: Map<string, WeekdaySets> = new Map(prev);
-            deleteEventIdFromBucket(eventId, toZonedTime(startDate, timeZone), timeZone, updatedMap);
+            deleteEventIdFromBucket(eventToDelete.eventId, new Date(eventToDelete.startDate), currentTimeZone, updatedMap);
             return updatedMap;
         });
-        setEventIdToEvent((prev: Map<string, Event>) => {
+        setEventIdToEvent((prev: Map<string, Event> | undefined) => {
             const updatedMap = new Map(prev);
-            updatedMap.delete(eventId);
+            updatedMap.delete(eventToDelete.eventId);
             return updatedMap;
         });
-    };
+    }
 
-    const deleteEventFromWeekStartToBuckets = (eventId: string, date: Date) => setWeekStartToBuckets((prev: Map<string, WeekdaySets>) => {
-        const updatedMap: Map<string, WeekdaySets> = new Map(prev);
-        deleteEventIdFromBucket(eventId, toZonedTime(date, timeZone), timeZone, updatedMap);
-        return updatedMap;
-    });
+    const updateRecurringEvent = (event: Event): void => {
+        // const loopStart: Date = getLoopStart(range, eventToSet.startDate);
+        // const loopEnd: Date = getLoopEnd(range, eventToSet.endDate!);
+        // const i: Date = new Date(loopStart);
+        // while (i <= loopEnd) {
+        //     const dayOfWeek = i.getDay() === 0 ? 6 : i.getDay() - 1;
+        //     if (eventToSet.selectedDays![dayOfWeek]) {
+        //         addEventIdToBucket(
+        //             eventToSet.eventId,
+        //             new Date(formatDateToISO(i)),
+        //             currentTimeZone,
+        //             weekStartToBuckets,
+        //         );
+        //     }
+        //     i.setDate(i.getDate() + 1);
+        // }
+    }
 
-    const validateWeekBuckets = (): Event[][] => {
-        const validBuckets: Event[][] = Array.from({ length: 7 }, () => []);
-        const weekBuckets = getWeekBuckets(formatDateToISO(monday), weekStartToBuckets);
-        let currentDay: Date = toZonedTime(monday, timeZone)
-        currentDay.setHours(0, 0, 0, 0)
-        for (let i = 0; i < 7; i++) {
-            const dayOfTheWeek: Set<string> = weekBuckets[i];
-            const eventsForDay: Event[] = [];
-            for (const eventId of dayOfTheWeek) {
-                const eventToRender: Event | undefined = eventIdToEvent.get(eventId);
-                if (!eventToRender) {
-                    deleteEventFromWeekStartToBuckets(eventId, currentDay);
-                    continue;
-                }
-                if (eventToRender.endDate && (!eventToRender.selectedDays![i] || currentDay < toZonedTime(eventToRender.startDate, timeZone) || currentDay > toZonedTime(eventToRender.endDate, timeZone))) {
-                    deleteEventFromWeekStartToBuckets(eventId, currentDay);
-                    continue;
-                }
+    const createRecurringEvent = (event: Event): void => {
+    }
 
-                eventsForDay.push(eventToRender);
-            }
-            validBuckets[i] = eventsForDay;
-            currentDay = toZonedTime(addDateBy(currentDay, 1), timeZone)
-        }
-        return validBuckets;
-    };
+    const deleteRecurringEvent = (event: Event): void => {
+    }
+
+
+
+
+
+
+    const getEventWeekBuckets = (): Event[][] =>
+        getWeekBuckets(formatDateToISO(monday), weekStartToBuckets).map(
+            (dayOfTheWeek) =>
+                Array.from(dayOfTheWeek)
+                    .map((eventId) => eventIdToEvent?.get(eventId))
+                    .filter((event): event is Event => Boolean(event))
+        );
+
 
     return <React.Fragment>
         <div
@@ -234,7 +294,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, ProfileModal,
                 <CalendarHeader
                     monday={monday}
                     calendarNavigation={(direction: "next" | "prev" | "today") => calendarNavigation(direction)}
-                    timeZone={timeZone}
+                    timeZone={currentTimeZone}
                     isLoadingEvents={isLoadingEvents}
                     range={range}
                 />
@@ -257,29 +317,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ FriendCards, ProfileModal,
             <div className="row-start-3 col-start-3 col-end-[-1]">
                 <MainGrid
                     ref={mainGridRef}
-                    isLoadingEvents={isLoadingEvents}
                     monday={monday}
-                    weekBuckets={validateWeekBuckets()}
-                    editEvent={(event: Event) => {
-                        setActiveModal(MODALS.EVENT);
-                        setClickedEvent(event);
-                    }}
+                    currentEvent={currentEvent}
+                    isLoadingEvents={isLoadingEvents}
+                    weekBuckets={getEventWeekBuckets()}
+                    calendarId={currentCalendarId}
+                    setCurrentEvent={(event: Event | undefined) => setCurrentEvent(event)}
+                    setActiveModal={(modal: MODALS) => setActiveModal(modal)}
+                    setSingleEvent={setSingleEvent}
+                    getEventById={(eventId: string) => eventIdToEvent.get(eventId)}
+                    deleteSingleEvent={deleteSingleEvent}
                 />
             </div>
             {
                 activeModal !== MODALS.NONE && <ActiveModal
+                    currentCalendarId={currentCalendarId}
                     activeModal={activeModal}
-                    FriendCards={FriendCards}
-                    ProfileModal={ProfileModal}
-                    setEvent={setEvent}
-                    deleteEvent={deleteEvent}
-                    clickedEvent={clickedEvent}
+                    currentEvent={currentEvent}
                     activePicker={activePicker}
-                    timeZone={timeZone}
                     setActivePicker={(picker: PICKERS) => setActivePicker(picker)}
                     closeActiveModal={closeModal}
-                    switchCalendar={switchCalendar}
                     calendarId={currentCalendarId}
+                    timeZone={currentTimeZone}
+                    switchTimeZone={switchTimeZone}
+
                 />
             }
         </div >

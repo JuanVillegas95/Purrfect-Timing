@@ -5,7 +5,6 @@ import { TimePicker } from "../ui/TimePicker";
 import { TextArea } from "../ui/TextArea";
 import { SelectedDays } from "../ui/SelectedDays";
 import { Button } from "../ui/Button";
-import { setEventServer, deleteEventServer } from "../server/actions";
 import { ColorPicker } from "../ui/ColorPicker";
 import { Icon } from "../ui/Icon";
 import { DAYS, PICKERS, EVENT_NAMES, BLANK_EVENT_ACTIONS_STATE } from "@utils/constants";
@@ -14,43 +13,42 @@ import { Event } from "@utils/interfaces";
 import { MdOutlineEventRepeat } from "react-icons/md";
 import { EventActionsState } from "@utils/interfaces"
 import { toZonedTime } from "date-fns-tz";
+import { useAuth } from "./AuthContext";
+import { deleteEventServer, setEventServer } from "@db/clientActions";
 
 interface EventModalProps {
-    setEvent: (event: Event, isRepeating: boolean) => void;
-    deleteEvent: (event: Event) => void;
     clickedEvent?: Event;
     closeActiveModal: () => void;
     activePicker: PICKERS;
     setActivePicker: (picker: PICKERS) => void;
     timeZone: string;
+    currentCalendarId: string;
 }
 
 export const EventModal: React.FC<EventModalProps> = ({
     setActivePicker,
-    setEvent,
-    deleteEvent,
     clickedEvent,
     closeActiveModal,
     activePicker,
-    timeZone
+    timeZone,
+    currentCalendarId,
 }) => {
-    const formRef = useRef<HTMLFormElement>(null);
+    const formRef: React.RefObject<HTMLFormElement> = useRef<HTMLFormElement>(null);
     const [isRepeating, setIsRepeating] = useState<boolean>(clickedEvent?.endDate ? true : false);
     const [saveState, saveAction, savePending] = useActionState(
         async (previousState: EventActionsState, formData: FormData) => {
             const actionState: EventActionsState = validateEventForm(formData, isRepeating);
             const hasErrors = Object.values(actionState.error).some((error) => error !== "");
-
             if (hasErrors) {
                 return { ...actionState, message: "Please check the highlighted fields and try again." };
             }
             try {
-                const eventToSet: Event = await setEventServer(formData, clickedEvent?.eventId);
-                setEvent(eventToSet, isRepeating);
+                await setEventServer(formData, currentCalendarId, timeZone, clickedEvent?.eventId);
                 closeActiveModal();
-                return { ...actionState, message: "Event saved successfully!", eventToSet };
+                return { ...actionState, message: "Event saved successfully!" };
             }
             catch (error) {
+                console.log(error)
                 return { ...actionState, message: "An error occurred while saving the event. Please try again later." };
             }
             finally {
@@ -63,8 +61,7 @@ export const EventModal: React.FC<EventModalProps> = ({
     const [deleteState, deleteAction, deletePending] = useActionState(
         async (previousState: unknown) => {
             try {
-                const isDeleted: boolean = await deleteEventServer(clickedEvent!.eventId);
-                deleteEvent(clickedEvent!)
+                const isDeleted: boolean = await deleteEventServer(clickedEvent!.eventId, currentCalendarId);
                 closeActiveModal();
                 return { message: "Event deleted successfully!" };
             } catch (error) {
@@ -113,6 +110,7 @@ export const EventModal: React.FC<EventModalProps> = ({
                     isActive={activePicker === PICKERS.START_DATE}
                     open={() => setActivePicker(PICKERS.START_DATE)}
                     close={() => setActivePicker(PICKERS.NONE)}
+                    timeZone={timeZone}
                 />
                 <TimePicker
                     name={EVENT_NAMES.START_TIME}
@@ -143,11 +141,13 @@ export const EventModal: React.FC<EventModalProps> = ({
                     isActive={activePicker === PICKERS.END_DATE}
                     open={() => setActivePicker(PICKERS.END_DATE)}
                     close={() => setActivePicker(PICKERS.NONE)}
+                    timeZone={timeZone}
+
                 />
                 <SelectedDays
                     names={DAYS}
                     error={saveState.error.SELECTED_DAYS}
-                    values={clickedEvent ? clickedEvent.selectedDays! : undefined}
+                    values={clickedEvent?.selectedDays ? clickedEvent.selectedDays : undefined}
                 />
             </div>}
             <TextArea

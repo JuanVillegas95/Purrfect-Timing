@@ -1,15 +1,9 @@
-import {
-  Event,
-  User,
-  EventActionsState,
-  CalendarActionsState,
-  UserCalendarActionsState,
-} from "./interfaces";
+import { Event, EventActionsState, CalendarActionsState } from "./interfaces";
 
 export const HEADER_HEIGTH_ASIDE_WIDTH: number = 64; //multiple of 8, originally was set to 64
 export const DAYS_HEIGTH_HOURS_WIDTH: number = 84;
 export const LOGO_SIZE = HEADER_HEIGTH_ASIDE_WIDTH - 10;
-export const HOURS_HEIGHT_VH: number = 8;
+export const HOURS_HEIGHT_VH: number = 4;
 
 export const LEFT_MOUSE_CLICK: number = 0;
 export const EVENT_TITLE_MAX_LENGTH: number = 40;
@@ -26,12 +20,12 @@ export const DAYS: string[] = [
 ];
 
 export const COLORS: string[] = [
-  "#FF0000",
-  "#00FF00",
-  "#0000FF",
-  "#FFFF00",
-  "#FF00FF",
-  "#00FFFF",
+  "#D6F5DA",
+  "#E3B4BA",
+  "#DDC4E5",
+  "#B5DCD5",
+  "#F2EBBF",
+  "#BAEAF7",
 ];
 
 export const enum MODALS {
@@ -65,6 +59,17 @@ export const enum EVENT_NAMES {
   SELECTED_DAYS = "SELECTED_DAYS",
 }
 
+export const enum MOUSE_ACTION {
+  SELECT,
+  CREATE,
+  RESIZE_TOP,
+  RESIZE_BOTTOM,
+  DRAG,
+  NONE,
+}
+
+export const CLICK_THRESHOLD = 200;
+
 export const USER_ID: string = "BtXktmE5bOU5RHtNlw9vji9tcV23";
 export const CALENDAR_ID: string = "VYApBkUSzwWqHb8DNd7l";
 
@@ -78,8 +83,9 @@ export const BLANK_EVENT: Event = {
   title: "",
   description: "",
   startDate: "",
-  endDate: "",
+  endDate: null,
   selectedDays: null,
+  spiltedReferenceId: null,
 };
 
 export const BLANK_EVENT_ERRORS = {
@@ -105,7 +111,6 @@ export const BLANK_CALENDAR_ACTIONS_STATE: CalendarActionsState = {
   message: "",
   singleEvents: [],
   recurringEvents: [],
-  timeZone: "",
   calendarId: "",
 };
 
@@ -116,8 +121,4 @@ export enum EVENT_FETCH_TESHHOLDS {
   MAX_DAYS = 30,
 }
 
-export const BLANK_USER_CALENDAR_ACTION_STATE: UserCalendarActionsState = {
-  id: "",
-  name: "",
-  timeZone: "",
-};
+export const INTIAL_RANGE: number = 14;

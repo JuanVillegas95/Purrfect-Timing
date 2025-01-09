@@ -52,7 +52,7 @@ export const TimePicker: React.FC<TimePickerProps> = ({
             />
             {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
 
-            {isActive && <div className="absolute top-12 bg-white border rounded-lg shadow-lg p-4 max-h-64 w-64 overflow-y-auto z-10">
+            {isActive && <div className="absolute top-12 bg-white border rounded-lg shadow-lg p-4 max-h-64 w-64 overflow-y-auto z-20">
                 {times.map((time) => (
                     <div
                         key={time}

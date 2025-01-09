@@ -17,21 +17,15 @@ export interface Event {
   endHours: number;
   endMinutes: number;
   startDate: string;
-  endDate: string;
+  endDate: string | null;
   selectedDays: boolean[] | null;
+  spiltedReferenceId: string | null;
 }
 
 export interface Calendar {
   eventIdToEvent: Map<string, Event>;
   dateToEventId: Map<string, Set<string>>;
   timeZone: string;
-}
-
-export interface User {
-  email: string;
-  username: string;
-  friends: { email: string; username: string }[];
-  calendars: Map<string, Calendar>;
 }
 
 export interface EventActionsState {
@@ -44,7 +38,6 @@ export interface CalendarActionsState {
   singleEvents: Event[];
   recurringEvents: Event[];
   message: string;
-  timeZone: string;
   calendarId: string;
 }
 
@@ -53,8 +46,29 @@ export interface Range {
   end: string;
 }
 
-export interface UserCalendarActionsState {
-  id: string;
+export interface UserServer {
   name: string;
-  timeZone: string;
+  email: string;
+  createdAt: Date;
+  calendars: string[];
+}
+
+export interface CalendarServer {
+  id: string;
+  members: string[];
+  name: string;
+  owner: string;
+}
+
+export interface InitialFetch {
+  ownedCalendars: CalendarServer[];
+  memberCalendars: CalendarServer[];
+  initalSingle: Event[];
+  initalRecurring: Event[];
+  initialCalendarId: string;
+}
+
+export interface FetchedEvents {
+  single: Event[];
+  recurring: Event[];
 }

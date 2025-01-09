@@ -1,48 +1,7 @@
-"use client";
+import { Login } from "@client/Login"
 
-import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
-import { FaGithub } from "react-icons/fa";
-import { FcGoogle } from "react-icons/fc";
-import React from "react";
-// import { login } from "./actions";
-
-export default function LoginForm() {
-    // const [state, loginAction] = useActionState(login, undefined);
-
-    return <div className="min-h-screen bg-gray-100 text-gray-900 flex justify-center items-center">
-        <div className="bg-white p-8 inline-flex flex-col w-3/12">
-            <h1 className="text-2xl xl:text-3xl font-extrabold">Sign up</h1>
-            <div className="w-full mt-8">
-                <div className="flex flex-col items-center gap-5">
-                    <button
-                        className="w-full font-bold shadow-sm rounded-lg p-3 bg-indigo-100 text-gray-800 flex items-center justify-center"
-                    >
-                        {React.createElement(FcGoogle)}
-                        <span className="ml-4">Sign Up with Google</span>
-                    </button>
-                    <button
-                        className="w-full font-bold shadow-sm rounded-lg py-3 bg-indigo-100 text-gray-800 flex items-center justify-center"
-                    >
-                        {React.createElement(FaGithub)}
-                        <span className="ml-4">Sign Up with GitHub</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-
+export default function LoginServer() {
+    return <Login />
 
 }
 
-function SubmitButton() {
-    const { pending } = useFormStatus();
-
-    return (
-        <button disabled={pending} type="submit">
-            Login
-        </button>
-    );
-}

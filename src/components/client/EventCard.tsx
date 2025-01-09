@@ -12,6 +12,7 @@ interface EventCardProps {
 
 export const EventCard: React.FC<EventCardProps> = ({ event, editEvent, left, width }) => {
     const { startHours, startMinutes, endMinutes, endHours, color } = event
+
     const top: number = timeInVh(startHours, startMinutes);
     const height: number = timeInVh(endHours, endMinutes) - top;
 

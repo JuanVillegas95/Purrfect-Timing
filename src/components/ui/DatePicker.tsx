@@ -1,4 +1,5 @@
-import { formatDateToISO } from "@utils/functions";
+import { formatDateToISO, fromUTCToZoned } from "@utils/functions";
+import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import React, { useState, useEffect } from "react";
 
 interface DatePickerProps {
@@ -9,6 +10,7 @@ interface DatePickerProps {
     isActive: boolean;
     open: () => void;
     close: () => void;
+    timeZone: string;
 }
 
 export const DatePicker: React.FC<DatePickerProps> = ({
@@ -19,8 +21,9 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     open,
     close,
     isActive,
+    timeZone
 }) => {
-    const [date, setDate] = useState<Date>(new Date());
+    const [date, setDate] = useState<Date>(toZonedTime(new Date(), timeZone));
     const [selectedDate, setSelectedDate] = useState<Date>(value);
     const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
     const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
@@ -40,11 +43,14 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         return days;
     };
 
-    const prevMonth = () => {
+    const prevMonth = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+        e.preventDefault();
         setDate(new Date(date.getFullYear(), date.getMonth() - 1, 1));
     };
 
-    const nextMonth = () => {
+    const nextMonth = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+        e.preventDefault();
+
         setDate(new Date(date.getFullYear(), date.getMonth() + 1, 1));
     };
 
@@ -54,7 +60,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     };
 
     const formattedDate = selectedDate
-        ? formatDateToISO(selectedDate)
+        ? formatDateToISO(selectedDate).split('T')[0]
         : "";
 
     const monthYear = date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
@@ -77,14 +83,14 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         {isActive && <div className="absolute top-12 bg-white border rounded-lg shadow-lg p-6 w-64 z-10">
             <div className="flex items-center justify-between mb-4">
                 <button
-                    onClick={prevMonth}
+                    onClick={(e) => prevMonth(e)}
                     className="text-gray-500 hover:text-blue-500"
                 >
                     &lt;
                 </button>
                 <div className="text-lg font-semibold">{monthYear}</div>
                 <button
-                    onClick={nextMonth}
+                    onClick={e => nextMonth(e)}
                     className="text-gray-500 hover:text-blue-500"
                 >
                     &gt;

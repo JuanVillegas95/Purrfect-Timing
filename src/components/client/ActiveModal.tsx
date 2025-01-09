@@ -5,41 +5,39 @@ import { EventModal } from "./EventModal";
 import { AboutUsModal } from "./AboutUsModal";
 import { Event } from "@utils/interfaces";
 import { CalendarModal } from "./CalendarModal";
+import { ProfileModal } from "@server/ProfileModal";
 
 interface ActiveModalProps {
     activeModal: MODALS;
-    FriendCards: React.ReactNode;
-    ProfileModal: React.ReactNode;
     closeActiveModal: () => void;
-    setEvent: (event: Event, isRepeating: boolean) => void;
-    deleteEvent: (event: Event) => void;
-    clickedEvent?: Event;
+    currentEvent: Event | undefined;
     activePicker: PICKERS
     setActivePicker: (picker: PICKERS) => void;
     timeZone: string;
-    switchCalendar: (calendarId: string) => Promise<void>
     calendarId: string;
+    switchTimeZone: (timeZone: string) => void;
+    currentCalendarId: string;
+
 }
 
-export const ActiveModal: React.FC<ActiveModalProps> = ({ deleteEvent, timeZone, setActivePicker, activePicker, activeModal, FriendCards, ProfileModal, closeActiveModal, setEvent, clickedEvent, switchCalendar, calendarId }) => {
+export const ActiveModal: React.FC<ActiveModalProps> = ({ currentCalendarId, switchTimeZone, timeZone, setActivePicker, activePicker, activeModal, closeActiveModal, currentEvent, calendarId }) => {
     const renderContent = () => {
         switch (activeModal) {
             case MODALS.EVENT:
                 return <EventModal
-                    setEvent={setEvent}
-                    clickedEvent={clickedEvent}
+                    clickedEvent={currentEvent}
                     closeActiveModal={closeActiveModal}
                     setActivePicker={setActivePicker}
                     activePicker={activePicker}
                     timeZone={timeZone}
-                    deleteEvent={deleteEvent}
+                    currentCalendarId={currentCalendarId}
                 />;
             case MODALS.FRIENDS:
-                return <FriendsModal FriendCards={FriendCards} />
+                return <div></div>
             case MODALS.CALENDARS:
-                return <CalendarModal calendarId={calendarId} switchCalendar={switchCalendar} />
+                return <CalendarModal calendarId={calendarId} closeActiveModal={closeActiveModal} />
             case MODALS.PROFILE:
-                return <div>{ProfileModal}</div>
+                return <ProfileModal switchTimeZone={switchTimeZone} timeZone={timeZone} />
             case MODALS.ABOUT_US:
                 return <AboutUsModal />
             default:

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 interface SelectedDaysProps {
     names?: string[];
     error?: string;
-    values?: boolean[]
+    values?: boolean[] 
 }
 
 export const SelectedDays: React.FC<SelectedDaysProps> = ({
