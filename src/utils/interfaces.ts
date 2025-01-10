@@ -72,3 +72,7 @@ export interface FetchedEvents {
   single: Event[];
   recurring: Event[];
 }
+export interface HoursAndMinutes {
+  hours: number;
+  minutes: number;
+}

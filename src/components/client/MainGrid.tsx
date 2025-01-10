@@ -1,7 +1,7 @@
 import React, { act, forwardRef, useRef, useState } from "react";
-import { BLANK_EVENT, CLICK_THRESHOLD, HOURS_HEIGHT_VH, LEFT_MOUSE_CLICK, MODALS, MOUSE_ACTION } from "../../utils/constants";
-import { Event, EventActionsState } from "../../utils/interfaces";
-import { addDateBy, formatDateToISO, roundTime, createColumnsForDay, timeInVh, vhToTime, getRandomColor, timeToMinutes, hoursToMinutes, timeInMinutes, splitEventAcrossMidnight, getEventTotalMinutes } from "../../utils/functions";
+import { BLANK_EVENT, CLICK_THRESHOLD, HOURS_HEIGHT_VH, LEFT_MOUSE_CLICK, MIN_END_HOURS, MIN_END_MINUTES, MIN_START_HOURS, MIN_START_MINUTES, MODALS, MOUSE_ACTION } from "../../utils/constants";
+import { Event, EventActionsState, HoursAndMinutes } from "../../utils/interfaces";
+import { addDateBy, formatDateToISO, roundTime, createColumnsForDay, timeInVh, vhToTime, getRandomColor, timeToMinutes, hoursToMinutes, timeInMinutes, splitEventAcrossMidnight, getEventTotalMinutes, validateTime } from "../../utils/functions";
 import { EventCard } from "./EventCard";
 import { WeekdaySets } from "@utils/types";
 import { generateEventId } from "@db/clientActions";
@@ -37,7 +37,7 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
                 case MOUSE_ACTION.CREATE:
                     if (!date) break;
                     const distanceFromTop: number = (e.clientY - columnHeightRef.current.getBoundingClientRect().top) * (100 / window.innerHeight);
-                    const time: { hours: number; minutes: number } = vhToTime(distanceFromTop);
+                    const time: HoursAndMinutes = vhToTime(distanceFromTop);
                     const { hours: startHours, minutes: startMinutes } = roundTime(time.hours, time.minutes);
                     const eventId = generateEventId(calendarId);
                     const color = getRandomColor();
@@ -69,57 +69,117 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
         const onMouseMove = (e: React.MouseEvent<HTMLDivElement>, bucketIndex?: number) => {
             e.preventDefault();
             e.stopPropagation();
-            if (e.button !== LEFT_MOUSE_CLICK || !columnHeightRef.current || currentEvent === undefined) return;
 
-            const currentEventPrevStarHours: number = currentEvent.startHours;
-            const currentEventPrevStarMinutes: number = currentEvent.startMinutes;
-            const currentEventPrevEndHours: number = currentEvent.endHours;
-            const currentEventPrevEndMinutes: number = currentEvent.endMinutes;
+
+            if (e.button !== LEFT_MOUSE_CLICK || !columnHeightRef.current || currentEvent === undefined) return;
+            let eventCopy: Event = { ...currentEvent };
+
+            const prevStartHours: number = eventCopy.startHours;
+            const prevStartMinutes: number = eventCopy.startMinutes;
+            const prevEndHours: number = eventCopy.endHours;
+            const prevEndMinutes: number = eventCopy.endMinutes;
 
             const distanceFromTop: number = (e.clientY - columnHeightRef.current.getBoundingClientRect().top) * (100 / window.innerHeight);
-            const time: { hours: number; minutes: number } = vhToTime(distanceFromTop);
-            const { hours, minutes } = roundTime(time.hours, time.minutes);
-            let eventCopy: Event = { ...currentEvent }
-            const totalStart: number = timeInMinutes(eventCopy.startHours, eventCopy.startMinutes);
-            const totalEnd: number = timeInMinutes(eventCopy.endHours, eventCopy.endMinutes)
+            const time: HoursAndMinutes = vhToTime(distanceFromTop);
+            const roundedTime: HoursAndMinutes = roundTime(time.hours, time.minutes);
+
+
+
             if (mouseAction === MOUSE_ACTION.SELECT) {
                 if (!selectStart.current) throw Error("Cannot set apart drag or click");
-                const timeHeld = new Date().getTime() - selectStart.current;
-                if (timeHeld >= CLICK_THRESHOLD) {
-                    setMouseAction(MOUSE_ACTION.DRAG);
-                }
+                const timeHeld: number = new Date().getTime() - selectStart.current;
+                if (timeHeld >= CLICK_THRESHOLD) setMouseAction(MOUSE_ACTION.DRAG);
             }
             else if (mouseAction === MOUSE_ACTION.DRAG) {
-                let { startDate, startHours, startMinutes, endHours, endMinutes } = currentEvent;
                 if (!currentEvent.endDate && bucketIndex) {
-                    const startDateObj = new Date(currentEvent.startDate)
+                    const startDateObj = new Date(eventCopy.startDate)
                     const numericalDay: number = startDateObj.getDay() === 0 ? 6 : startDateObj.getDay() - 1
                     const dayDifference: number = bucketIndex - numericalDay;
-                    if (dayDifference !== 0) startDate = formatDateToISO(addDateBy(startDateObj, dayDifference));
+                    if (dayDifference !== 0) eventCopy.startDate = formatDateToISO(addDateBy(startDateObj, dayDifference));
                 }
-                const top: number = timeInVh(startHours, startMinutes);
-                const height: number = timeInVh(endHours, endMinutes) - top;
+                const top: number = timeInVh(eventCopy.startHours, eventCopy.startMinutes);
+                const height: number = timeInVh(eventCopy.endHours, eventCopy.endMinutes) - top;
                 const padding: number = height / 2;
+                const dragStartTime: HoursAndMinutes = vhToTime(distanceFromTop - padding);
+                const dragEndTime: HoursAndMinutes = vhToTime(distanceFromTop + padding);
+                const roundedDragStartTime: HoursAndMinutes = roundTime(dragStartTime.hours, dragEndTime.minutes);
+                const roundedDragEndTime: HoursAndMinutes = roundTime(dragEndTime.hours, dragEndTime.minutes);
+                const otherHalf: Event | undefined = eventCopy.spiltedReferenceId
+                    ? getEventById(eventCopy.spiltedReferenceId)
+                    : undefined;
 
-                const timeStart = vhToTime(distanceFromTop - padding);
-                const timeEnd = vhToTime(distanceFromTop + padding);
-                const { hours: newStartHours, minutes: newStartMinutes } = roundTime(timeStart.hours, timeStart.minutes);
-                const { hours: newEndHours, minutes: newEndMinutes } = roundTime(timeEnd.hours, timeEnd.minutes);
+
+                let duration: number = 0
+                duration = Math.max(duration, otherHalf ? getEventTotalMinutes(eventCopy) + getEventTotalMinutes(otherHalf) : getEventTotalMinutes(eventCopy))
+                console.log(duration)
+                if (roundedDragStartTime.hours < MIN_START_HOURS || roundedDragStartTime.minutes < MIN_START_MINUTES) {
+                }
+                else if ((roundedDragStartTime.hours > MIN_END_HOURS || roundedDragStartTime.minutes > MIN_END_MINUTES) && !otherHalf) {
+
+                }
+
                 if (!eventCopy.spiltedReferenceId) {
+
                     eventCopy = {
                         ...eventCopy,
-                        startDate,
-                        startHours: newStartHours,
-                        startMinutes: newStartMinutes,
-                        endHours: newEndHours,
-                        endMinutes: newEndMinutes
+                        startHours: roundedDragStartTime.hours,
+                        startMinutes: roundedDragStartTime.minutes,
+                        endHours: roundedDragEndTime.hours,
+                        endMinutes: roundedDragEndTime.minutes
                     }
-                } else {
-                    console.log(totalEnd)
+                }
+                else {
+
+                    const duration: number = eventCopyTotalEndMinutes - eventCopyTotalStartMinutes;
+                    console.log(eventCopy.startHours, eventCopy.startMinutes)
+
+                    if (eventCopyTotalStartMinutes < 0 && !currentEvent.spiltedReferenceId) {
+                        const otherHalfId: string = generateEventId(calendarId)
+                        eventCopy = {
+                            ...eventCopy,
+                            startHours: 0,
+                            startMinutes: 0,
+                            endHours: newEndHours,
+                            endMinutes: newEndMinutes,
+                            spiltedReferenceId: otherHalfId,
+                        }
+                        const otherHalf: Event = {
+                            ...eventCopy,
+                            eventId: otherHalfId,
+                            spiltedReferenceId: eventCopy.eventId,
+                            startDate: formatDateToISO(addDateBy(new Date(eventCopy.startDate), -1)),
+                            startHours: 23,
+                            startMinutes: 45,
+                            endHours: 23,
+                            endMinutes: 59
+                        }
+                        setSingleEvent(otherHalf)
+                    }
+                    if (eventCopyTotalEndMinutes >= 24 * 60 && !currentEvent.spiltedReferenceId) {
+                        const otherHalfId: string = generateEventId(calendarId)
+                        eventCopy = {
+                            ...eventCopy,
+                            startHours: newStartHours,
+                            startMinutes: newStartMinutes,
+                            endHours: 23,
+                            endMinutes: 59,
+                            spiltedReferenceId: otherHalfId,
+                        }
+                        const otherHalf: Event = {
+                            ...eventCopy,
+                            eventId: otherHalfId,
+                            spiltedReferenceId: eventCopy.eventId,
+                            startDate: formatDateToISO(addDateBy(new Date(eventCopy.startDate), 1)),
+                            startHours: 0,
+                            startMinutes: 0,
+                            endHours: 0,
+                            endMinutes: 15
+                        }
+                        setSingleEvent(otherHalf)
+                    }
                     const otherHalf: Event | undefined = getEventById(eventCopy.spiltedReferenceId)
                     if (!otherHalf) throw Error("no other ha;f")
-
-                    if (totalStart <= 0) {
+                    if (eventCopyTotalStartMinutes <= 0) {
                         const deltaEndHours = currentEventPrevEndHours - newEndHours;
                         const deltaEndMinuts = currentEventPrevEndMinutes - newEndMinutes;
                         eventCopy = {
@@ -137,8 +197,7 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
                             endMinutes: 59
                         }
                         setSingleEvent(otherHalfCopy)
-                    } else if (totalEnd >= (24 * 60) - 1) {//!CHECK THIS ONE
-                        console.log("hiiiii")
+                    } else if (eventCopyTotalEndMinutes >= (24 * 60) - 1) {
                         const deltaStartHours = currentEventPrevStarHours - newStartHours;
                         const deltaStartMinutes = currentEventPrevStarMinutes - newStartMinutes;
                         eventCopy = {
@@ -158,57 +217,18 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
                         setSingleEvent(otherHalfCopy)
                     }
                 }
-                if (totalStart < 0 && !currentEvent.spiltedReferenceId) {
-                    const otherHalfId: string = generateEventId(calendarId)
-                    eventCopy = {
-                        ...eventCopy,
-                        startHours: 0,
-                        startMinutes: 0,
-                        endHours: newEndHours,
-                        endMinutes: newEndMinutes,
-                        spiltedReferenceId: otherHalfId,
-                    }
-                    const otherHalf: Event = {
-                        ...eventCopy,
-                        eventId: otherHalfId,
-                        spiltedReferenceId: eventCopy.eventId,
-                        startDate: formatDateToISO(addDateBy(new Date(eventCopy.startDate), -1)),
-                        startHours: 23,
-                        startMinutes: 45,
-                        endHours: 23,
-                        endMinutes: 59
-                    }
-                    setSingleEvent(otherHalf)
-                }
-                else if (totalEnd >= 24 * 60 && !currentEvent.spiltedReferenceId) {
-                    const otherHalfId: string = generateEventId(calendarId)
-                    eventCopy = {
-                        ...eventCopy,
-                        startHours: newStartHours,
-                        startMinutes: newStartMinutes,
-                        endHours: 23,
-                        endMinutes: 59,
-                        spiltedReferenceId: otherHalfId,
-                    }
-                    const otherHalf: Event = {
-                        ...eventCopy,
-                        eventId: otherHalfId,
-                        spiltedReferenceId: eventCopy.eventId,
-                        startDate: formatDateToISO(addDateBy(new Date(eventCopy.startDate), 1)),
-                        startHours: 0,
-                        startMinutes: 0,
-                        endHours: 0,
-                        endMinutes: 15
-                    }
-                    setSingleEvent(otherHalf)
-                }
+
+
             }
             else if (mouseAction === MOUSE_ACTION.RESIZE_TOP) {
-                eventCopy = { ...eventCopy, startHours: hours, startMinutes: minutes }
+
+                eventCopy = { ...eventCopy, startHours: roundedTime.hours, startMinutes: roundedTime.minutes }
             }
             else if (mouseAction === MOUSE_ACTION.RESIZE_BOTTOM || mouseAction === MOUSE_ACTION.CREATE) {
-                eventCopy = { ...eventCopy, endHours: hours, endMinutes: minutes }
+
+                eventCopy = { ...eventCopy, endHours: roundedTime.hours, endMinutes: roundedTime.minutes }
             }
+
 
             setCurrentEvent(eventCopy)
             setSingleEvent(eventCopy)

@@ -122,3 +122,9 @@ export enum EVENT_FETCH_TESHHOLDS {
 }
 
 export const INTIAL_RANGE: number = 14;
+
+export const MIN_START_HOURS = 0;
+export const MIN_START_MINUTES = 0;
+export const MIN_END_HOURS = 24;
+export const MIN_END_MINUTES = 0;
+export const MIN_EVENT_DURATION_MINUTES = 15;

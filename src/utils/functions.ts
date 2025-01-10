@@ -1,10 +1,5 @@
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
-import {
-  EventActionsState,
-  Range,
-  Event,
-  CalendarActionsState,
-} from "./interfaces";
+import { EventActionsState, Range, Event, HoursAndMinutes } from "./interfaces";
 
 import {
   DAYS,
@@ -16,6 +11,10 @@ import {
   BLANK_EVENT_ERRORS,
   EVENT_FETCH_TESHHOLDS,
   COLORS,
+  MIN_END_MINUTES,
+  MIN_END_HOURS,
+  MIN_START_MINUTES,
+  MIN_START_HOURS,
 } from "@utils/constants";
 import { WeekdaySets } from "./types";
 import { generateEventId } from "@db/clientActions";
@@ -58,9 +57,7 @@ export const timeInMinutes = (hours: number, minutes: number): number =>
 export const timeInVh = (hours: number, minutes: number): number =>
   hoursToVh(hours + minutesToHours(minutes));
 
-export const vhToTime = (
-  distanceFromTop: number,
-): { hours: number; minutes: number } => {
+export const vhToTime = (distanceFromTop: number): HoursAndMinutes => {
   const totalHours = vhToHours(distanceFromTop);
   const totalMinutes = Math.round(hoursToMinutes(totalHours));
   const hours = Math.floor(minutesToHours(totalMinutes));
@@ -233,9 +230,7 @@ export const formatDateToISO = (date: Date): string => {
   return string;
 };
 
-export const parseTimeString = (
-  time: string,
-): { hours: number; minutes: number } => {
+export const parseTimeString = (time: string): HoursAndMinutes => {
   const [hours, minutes] = time.split(":").map(Number);
   if (
     isNaN(hours) ||
@@ -622,10 +617,7 @@ export const getRandomColor = (): string => {
   return COLORS[randomIndex];
 };
 
-export const roundTime = (
-  hours: number,
-  minutes: number,
-): { hours: number; minutes: number } => {
+export const roundTime = (hours: number, minutes: number): HoursAndMinutes => {
   const roundedMinutes = Math.round(minutes / 15) * 15;
   if (roundedMinutes === 60) {
     hours = (hours + 1) % 24;
@@ -697,4 +689,18 @@ export const splitEventAcrossMidnight = (
     partA: splittedPartA,
     partB: splittedPartB,
   };
+};
+
+export const validateTime = (
+  startHours: number,
+  startMinutes: number,
+  endHours: number,
+  endMinutes: number,
+): boolean => {
+  if (
+    (startHours < MIN_START_HOURS && startMinutes < MIN_START_MINUTES) ||
+    (endHours > MIN_END_HOURS && endMinutes > MIN_END_MINUTES)
+  )
+    return false;
+  return true;
 };
