@@ -11,8 +11,8 @@ import {
   BLANK_EVENT_ERRORS,
   EVENT_FETCH_TESHHOLDS,
   COLORS,
-  MIN_END_MINUTES,
-  MIN_END_HOURS,
+  MAX_END_MINUTES,
+  MAX_END_HOURS,
   MIN_START_MINUTES,
   MIN_START_HOURS,
 } from "@utils/constants";
@@ -57,8 +57,8 @@ export const timeInMinutes = (hours: number, minutes: number): number =>
 export const timeInVh = (hours: number, minutes: number): number =>
   hoursToVh(hours + minutesToHours(minutes));
 
-export const vhToTime = (distanceFromTop: number): HoursAndMinutes => {
-  const totalHours = vhToHours(distanceFromTop);
+export const vhToTime = (vh: number): HoursAndMinutes => {
+  const totalHours = vhToHours(vh);
   const totalMinutes = Math.round(hoursToMinutes(totalHours));
   const hours = Math.floor(minutesToHours(totalMinutes));
   const minutes = totalMinutes % 60;
@@ -72,6 +72,7 @@ export const generate24HourIntervals = (): string[] => {
     timeArray.push(`${formattedTime}:00`);
     timeArray.push(`${formattedTime}:30`);
   }
+  timeArray.push("00:00");
   return timeArray;
 };
 
@@ -691,16 +692,16 @@ export const splitEventAcrossMidnight = (
   };
 };
 
-export const validateTime = (
-  startHours: number,
-  startMinutes: number,
-  endHours: number,
-  endMinutes: number,
-): boolean => {
-  if (
-    (startHours < MIN_START_HOURS && startMinutes < MIN_START_MINUTES) ||
-    (endHours > MIN_END_HOURS && endMinutes > MIN_END_MINUTES)
-  )
-    return false;
-  return true;
+export const clamp = (value: number, min: number, max: number): number => {
+  return Math.max(min, Math.min(value, max));
+};
+
+export const addMinutesToTime = (
+  start: HoursAndMinutes,
+  durationMinutes: number,
+): HoursAndMinutes => {
+  const startTotal = start.hours * 60 + start.minutes + durationMinutes;
+  const newHours = Math.floor(startTotal / 60);
+  const newMinutes = startTotal % 60;
+  return { hours: newHours, minutes: newMinutes };
 };
