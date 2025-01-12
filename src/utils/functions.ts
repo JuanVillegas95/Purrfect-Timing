@@ -621,7 +621,7 @@ export const getRandomColor = (): string => {
 export const roundTime = (hours: number, minutes: number): HoursAndMinutes => {
   const roundedMinutes = Math.round(minutes / 15) * 15;
   if (roundedMinutes === 60) {
-    hours = (hours + 1) % 24;
+    hours = (hours + 1) % 25;
     minutes = 0;
   } else {
     minutes = roundedMinutes;
@@ -696,12 +696,4 @@ export const clamp = (value: number, min: number, max: number): number => {
   return Math.max(min, Math.min(value, max));
 };
 
-export const addMinutesToTime = (
-  start: HoursAndMinutes,
-  durationMinutes: number,
-): HoursAndMinutes => {
-  const startTotal = start.hours * 60 + start.minutes + durationMinutes;
-  const newHours = Math.floor(startTotal / 60);
-  const newMinutes = startTotal % 60;
-  return { hours: newHours, minutes: newMinutes };
-};
+// export const doesEventCrossMidnight = ({startHours , endHours, endMinutes}: Event): boolean => startHours < 0  ||

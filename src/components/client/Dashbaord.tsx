@@ -204,7 +204,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ initCalendarData: { initia
             else {
                 const oldDay = oldEvent.startDate;
                 const newDay = eventToSet.startDate;
-
                 if (oldDay !== newDay) {
                     deleteEventIdFromBucket(
                         oldEvent.eventId,

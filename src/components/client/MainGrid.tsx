@@ -27,9 +27,8 @@ import {
     vhToTime,
     getRandomColor,
     timeInMinutes,
-    getEventTotalMinutes,
     clamp,
-    addMinutesToTime
+    getEventTotalMinutes,
 } from "../../utils/functions";
 import { EventCard } from "./EventCard";
 import { WeekdaySets } from "@utils/types";
@@ -76,9 +75,8 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
         const selectStart = useRef<number>();
         const isHolding = useRef<boolean>(false);
 
-        // NEW: Stores info needed for vertical dragging
         const dragDataRef = useRef<{
-            initialMouseMinutes: number;
+            mouseOffsetFromEventStart: number;
             eventDuration: number;
         }>();
 
@@ -155,7 +153,6 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
             e.preventDefault();
             e.stopPropagation();
 
-            // If not left click or there's no currentEvent or no ref, do nothing
             if (
                 e.button !== LEFT_MOUSE_CLICK ||
                 !columnHeightRef.current ||
@@ -163,61 +160,50 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
             )
                 return;
 
-            // Copy the current event for safe modifications
             let eventCopy: Event = { ...currentEvent };
 
-            // Distance from top in vh
             const mousePosVh =
                 (e.clientY -
                     columnHeightRef.current.getBoundingClientRect().top) *
                 (100 / window.innerHeight);
 
-            // Convert that distance to raw time
             const time: HoursAndMinutes = vhToTime(mousePosVh);
             const roundedTime: HoursAndMinutes = roundTime(time.hours, time.minutes);
-
+            const roundedTimeMin = timeInMinutes(roundedTime.hours, roundedTime.minutes);
             if (mouseAction === MOUSE_ACTION.SELECT) {
-                // Distinguish between a click vs. a drag
                 if (!selectStart.current) throw Error("Cannot set apart drag or click");
                 const timeHeld = new Date().getTime() - selectStart.current;
                 if (timeHeld >= CLICK_THRESHOLD) {
-                    // Record data for vertical dragging
-                    const startMin = timeInMinutes(
-                        eventCopy.startHours,
-                        eventCopy.startMinutes
-                    );
-                    const endMin = timeInMinutes(eventCopy.endHours, eventCopy.endMinutes);
-                    const mouseMin = timeInMinutes(roundedTime.hours, roundedTime.minutes);
+                    const startMin: number = timeInMinutes(eventCopy.startHours, eventCopy.startMinutes);
+                    const endMin: number = timeInMinutes(eventCopy.endHours, eventCopy.endMinutes);
+                    const mouseMin: number = timeInMinutes(roundedTime.hours, roundedTime.minutes);
 
                     dragDataRef.current = {
-                        initialMouseMinutes: mouseMin - startMin,
+                        mouseOffsetFromEventStart: mouseMin - startMin,
                         eventDuration: endMin - startMin
                     };
 
                     setMouseAction(MOUSE_ACTION.DRAG);
                 }
-            } else if (mouseAction === MOUSE_ACTION.RESIZE_TOP) {
-                // Adjust start time
+            } else if (mouseAction === MOUSE_ACTION.RESIZE_TOP) { //TODO DO NOT LET RESIZE BIGGER THAN 24
+                if (roundedTimeMin < 0) return;
                 eventCopy.startHours = roundedTime.hours;
                 eventCopy.startMinutes = roundedTime.minutes;
                 setCurrentEvent(eventCopy);
                 setSingleEvent(eventCopy);
                 return;
             } else if (mouseAction === MOUSE_ACTION.RESIZE_BOTTOM) {
-                // Adjust end time
-                eventCopy.endHours = roundedTime.hours;
-                eventCopy.endMinutes = roundedTime.minutes;
+                eventCopy.endHours = clamp(roundedTime.hours, 0, 24);
+                eventCopy.endMinutes = clamp(roundedTime.minutes, 0, 59);
                 setCurrentEvent(eventCopy);
                 setSingleEvent(eventCopy);
                 return;
             } else if (mouseAction === MOUSE_ACTION.CREATE) {
-                // Creating a new event by dragging down
                 const roundedEndMin = timeInMinutes(roundedTime.hours, roundedTime.minutes);
                 const roundedStartMin = timeInMinutes(
                     eventCopy.startHours,
                     eventCopy.startMinutes
                 );
-                // Prevent event from being too short
                 if (roundedEndMin - roundedStartMin < MIN_DURATION_MINS) return;
 
                 eventCopy.endHours = roundedTime.hours;
@@ -225,10 +211,8 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
                 setCurrentEvent(eventCopy);
                 setSingleEvent(eventCopy);
             } else if (mouseAction === MOUSE_ACTION.DRAG) {
-                // DRAG action => move the entire event up/down (and possibly day shift)
                 if (!dragDataRef.current) return;
 
-                // If user has moved horizontally to another day
                 if (!currentEvent.endDate && bucketIndex !== undefined) {
                     const startDateObj = new Date(eventCopy.startDate);
                     const numericalDay = startDateObj.getDay() === 0
@@ -241,38 +225,148 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
                         );
                     }
                 }
-
-                // Calculate new start time based on mouse position minus initial offset
-                const mouseMin = timeInMinutes(roundedTime.hours, roundedTime.minutes);
-                let newStartMin = mouseMin - dragDataRef.current.initialMouseMinutes;
-                const duration = dragDataRef.current.eventDuration;
-
-                // Clamp so you don't go beyond 0:00 or past 24:00
-                // (24*60 - duration ensures the event does not exceed midnight)
-                newStartMin = clamp(newStartMin, 0, 24 * 60 - duration);
-
+                const duration: number = dragDataRef.current.eventDuration;
+                const mouseMin: number = timeInMinutes(roundedTime.hours, roundedTime.minutes);
+                const newStartMin = mouseMin - dragDataRef.current.mouseOffsetFromEventStart;
                 const newEndMin = newStartMin + duration;
+                const clampedStartMin = clamp(newStartMin, 0, 24 * 60 + duration);
+                const clampledEndMin = clamp(newEndMin, 0, 24 * 60 + duration);
+                if (!eventCopy.spiltedReferenceId) {
+                    if (duration >= 30 && newStartMin < 0) {
+                        const otherHalfId: string = generateEventId(calendarId);
+                        eventCopy = {
+                            ...eventCopy,
+                            startHours: 0,
+                            startMinutes: 0,
+                            endHours: Math.floor((clampledEndMin) / 60),
+                            endMinutes: (clampledEndMin) % 60,
+                            spiltedReferenceId: otherHalfId,
+                        }
+                        const otherHalf = {
+                            ...eventCopy,
+                            startDate: formatDateToISO(addDateBy(new Date(eventCopy.startDate), -1)),
+                            startHours: 23,
+                            startMinutes: 45,
+                            endHours: 24,
+                            endMinutes: 0,
+                            spiltedReferenceId: eventCopy.eventId,
+                            eventId: otherHalfId
+                        }
+                        setCurrentEvent(eventCopy);
+                        setSingleEvent(eventCopy);
+                        setSingleEvent(otherHalf);
+                    }
+                    else if (duration >= 30 && newEndMin > 24 * 60) {
+                        const otherHalfId: string = generateEventId(calendarId);
+                        eventCopy = {
+                            ...eventCopy,
+                            startHours: Math.floor((clampedStartMin) / 60),
+                            startMinutes: ((clampedStartMin) % 60),
+                            endHours: 24,
+                            endMinutes: 0,
+                            spiltedReferenceId: otherHalfId,
+                        }
+                        const otherHalf = {
+                            ...eventCopy,
+                            startDate: formatDateToISO(addDateBy(new Date(eventCopy.startDate), 1)),
+                            startHours: 0,
+                            startMinutes: 0,
+                            endHours: 0,
+                            endMinutes: 15,
+                            spiltedReferenceId: eventCopy.eventId,
+                            eventId: otherHalfId
+                        }
+                        setCurrentEvent(eventCopy);
+                        setSingleEvent(eventCopy);
+                        setSingleEvent(otherHalf);
+                    } else {
+                        eventCopy.startHours = Math.floor(clampedStartMin / 60);
+                        eventCopy.startMinutes = clampedStartMin % 60;
+                        eventCopy.endHours = Math.floor(clampledEndMin / 60);
+                        eventCopy.endMinutes = clampledEndMin % 60;
+                        setCurrentEvent(eventCopy);
+                        setSingleEvent(eventCopy);
+                    }
+                }
+                else {
+                    let otherHalf: Event = { ...getEventById(eventCopy.spiltedReferenceId)! };
+                    if (eventCopy.startHours === 0) {
 
-                // Convert back to hours/minutes
-                eventCopy.startHours = Math.floor(newStartMin / 60);
-                eventCopy.startMinutes = newStartMin % 60;
-                eventCopy.endHours = Math.floor(newEndMin / 60);
-                eventCopy.endMinutes = newEndMin % 60;
+                        const diffHours = eventCopy.endHours - Math.floor(clampledEndMin / 60)
+                        const diffMins = eventCopy.endMinutes - clampledEndMin % 60
 
-                setCurrentEvent(eventCopy);
-                setSingleEvent(eventCopy);
+                        eventCopy.startHours = 0;
+                        eventCopy.startMinutes = 0;
+
+                        eventCopy.endHours = Math.floor(clampledEndMin / 60);
+                        eventCopy.endMinutes = clampledEndMin % 60
+
+                        otherHalf.startHours = otherHalf.startHours - diffHours
+                        otherHalf.startMinutes = otherHalf.startMinutes - diffMins
+
+
+                        if (getEventTotalMinutes(eventCopy) <= 0) {
+                            setSingleEvent({ ...otherHalf, spiltedReferenceId: null })
+                            deleteSingleEvent(eventCopy)
+                            onMouseUp();
+                            return;
+                        }
+
+                        if (getEventTotalMinutes(otherHalf) <= 0) {
+                            setSingleEvent({ ...eventCopy, spiltedReferenceId: null })
+                            deleteSingleEvent(otherHalf)
+                            onMouseUp();
+                            return;
+                        }
+                        setSingleEvent(otherHalf)
+                        setCurrentEvent(eventCopy);
+                        setSingleEvent(eventCopy);
+
+                    }
+                    else if (timeInMinutes(eventCopy.endHours, eventCopy.endMinutes) >= 24 * 60) {
+                        const diffHours = eventCopy.startHours - Math.floor(clampedStartMin / 60)
+                        const diffMins = eventCopy.startMinutes - clampedStartMin % 60
+                        console.log(diffHours, diffMins)
+                        eventCopy.endHours = 24;
+                        eventCopy.endMinutes = 0;
+
+                        eventCopy.startHours = Math.floor(clampedStartMin / 60);
+                        eventCopy.startMinutes = clampedStartMin % 60
+
+                        otherHalf.endHours = otherHalf.endHours - diffHours
+                        otherHalf.endMinutes = otherHalf.endMinutes - diffMins
+
+
+
+                        if (getEventTotalMinutes(eventCopy) <= 0) {
+                            setSingleEvent({ ...otherHalf, spiltedReferenceId: null })
+                            deleteSingleEvent(eventCopy)
+                            onMouseUp();
+                            return;
+                        }
+
+                        if (getEventTotalMinutes(otherHalf) <= 0) {
+                            setSingleEvent({ ...eventCopy, spiltedReferenceId: null })
+                            deleteSingleEvent(otherHalf)
+                            onMouseUp();
+                            return;
+                        }
+                        setSingleEvent(otherHalf)
+                        setCurrentEvent(eventCopy);
+                        setSingleEvent(eventCopy);
+                    }
+                }
+
             }
         };
 
         const onMouseUp = (): void => {
-            setMouseAction(MOUSE_ACTION.NONE);
-            isHolding.current = false;
-
-            // If we never transitioned to drag, this means it was a click
             if (mouseAction === MOUSE_ACTION.SELECT) {
                 setActiveModal(MODALS.EVENT);
                 return;
             }
+            isHolding.current = false;
+            setMouseAction(MOUSE_ACTION.NONE);
             setCurrentEvent(undefined);
         };
 
@@ -285,8 +379,8 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
                 ref={ref}
                 className="grid grid-cols-7 border border-black overflow-scroll h-full relative"
                 style={{ maxHeight: "calc(100vh - 10vh)" }}
-                onMouseUp={() => onMouseUp()}
                 onMouseLeave={() => onMouseUp()}
+                onMouseUp={() => onMouseUp()}
             >
                 {weekBuckets.map((weekBucket: Event[], bucketIndex: number) => {
                     const columns: Event[][] = createColumnsForDay(weekBucket);
@@ -338,7 +432,7 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
                                         >
                                             <div className="relative h-full">
                                                 {hoveredEventId === event.eventId &&
-                                                    mouseAction !== MOUSE_ACTION.CREATE && (
+                                                    mouseAction !== MOUSE_ACTION.CREATE && (event.startHours !== 0 || event.startMinutes !== 0) && (
                                                         <div
                                                             className="absolute hover:cursor-ns-resize w-3 h-3 z-2 -top-1.5 right-1 bg-white rounded-lg border border-black"
                                                             onMouseDown={(e) =>
@@ -356,13 +450,13 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
                                                     {totalMinutes > 15 && (
                                                         <p>
                                                             {event.startHours}-{event.startMinutes}{" "}
-                                                            {event.endHours}-{event.endMinutes}
+                                                            {event.endHours === 24 ? 0 : event.endHours}-{event.endMinutes}
                                                         </p>
                                                     )}
                                                     <p>{event.description}</p>
                                                 </div>
                                                 {hoveredEventId === event.eventId &&
-                                                    mouseAction !== MOUSE_ACTION.CREATE && (
+                                                    mouseAction !== MOUSE_ACTION.CREATE && event.endHours !== 24 && (
                                                         <div
                                                             className="absolute hover:cursor-ns-resize w-3 h-3 z-2 -bottom-1.5 left-1 bg-white rounded-lg border border-black"
                                                             onMouseDown={(e) =>
