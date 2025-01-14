@@ -11,7 +11,9 @@ import {
     MIN_START_HOURS,
     MIN_START_MINUTES,
     MODALS,
-    MOUSE_ACTION
+    MOUSE_ACTION,
+    HEADER_HEIGTH_ASIDE_WIDTH,
+    DAYS_HEIGTH_HOURS_WIDTH
 } from "../../utils/constants";
 import {
     Event,
@@ -29,6 +31,7 @@ import {
     timeInMinutes,
     clamp,
     getEventTotalMinutes,
+    timeToTwoDigits,
 } from "../../utils/functions";
 import { EventCard } from "./EventCard";
 import { WeekdaySets } from "@utils/types";
@@ -46,6 +49,7 @@ interface MainGridProps {
     weekBuckets: Event[][];
     monday: Date;
     deleteSingleEvent: (eventToDelete: Event) => void;
+    setCurrentMousePosVh: (currPos: number) => void;
 }
 
 export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
@@ -60,7 +64,9 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
             calendarId,
             setSingleEvent,
             getEventById,
-            deleteSingleEvent
+            deleteSingleEvent,
+            setCurrentMousePosVh
+
         },
         ref
     ) => {
@@ -152,13 +158,18 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
         ) => {
             e.preventDefault();
             e.stopPropagation();
-
+            //TODO later
+            // if (!columnHeightRef.current) return;
+            // const mousePosVhh = (e.clientY - columnHeightRef.current.getBoundingClientRect().top) * (100 / window.innerHeight);
+            // const mouseTime = vhToTime(mousePosVhh);
+            // setCurrentMousePosVh(mousePosVhh)
             if (
                 e.button !== LEFT_MOUSE_CLICK ||
                 !columnHeightRef.current ||
                 currentEvent === undefined
             )
                 return;
+
 
             let eventCopy: Event = { ...currentEvent };
 
@@ -213,7 +224,7 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
             } else if (mouseAction === MOUSE_ACTION.DRAG) {
                 if (!dragDataRef.current) return;
 
-                if (!currentEvent.endDate && bucketIndex !== undefined) {
+                if (!eventCopy.endDate && bucketIndex !== undefined) {
                     const startDateObj = new Date(eventCopy.startDate);
                     const numericalDay = startDateObj.getDay() === 0
                         ? 6
@@ -224,6 +235,7 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
                             addDateBy(startDateObj, dayDifference)
                         );
                     }
+                    //TODO ADD ALSO WHEN EVENT MOVING WITH SPLITTED DAY
                 }
                 const duration: number = dragDataRef.current.eventDuration;
                 const mouseMin: number = timeInMinutes(roundedTime.hours, roundedTime.minutes);
@@ -376,10 +388,11 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
 
         return (
             <div
-                ref={ref}
-                className="grid grid-cols-7 border border-black overflow-scroll h-full relative"
-                style={{ maxHeight: "calc(100vh - 10vh)" }}
+                // ref={ref}
+                className="grid grid-cols-7 overflow-scroll h-full relative"
+                style={{ maxHeight: `calc(100vh - ${HEADER_HEIGTH_ASIDE_WIDTH + DAYS_HEIGTH_HOURS_WIDTH}px)` }}
                 onMouseLeave={() => onMouseUp()}
+
                 onMouseUp={() => onMouseUp()}
             >
                 {weekBuckets.map((weekBucket: Event[], bucketIndex: number) => {
@@ -414,7 +427,7 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
 
                                     return (
                                         <div
-                                            className="absolute hover:cursor-pointer rounded-md z-1"
+                                            className="absolute hover:cursor-pointer rounded-md z-10"
                                             style={{
                                                 top: `${top}vh`,
                                                 height: `${height}vh`,
@@ -445,15 +458,16 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
                                                             }
                                                         />
                                                     )}
+                                                {/* body */}
                                                 <div>
-                                                    <p>{event.title}</p>
-                                                    {totalMinutes > 15 && (
-                                                        <p>
-                                                            {event.startHours}-{event.startMinutes}{" "}
-                                                            {event.endHours === 24 ? 0 : event.endHours}-{event.endMinutes}
+                                                    {totalMinutes >= 30 && <p className="text-base font-bold">{event.title}</p>}
+                                                    {totalMinutes >= 60 && (
+                                                        <p className="text-sm">
+                                                            {timeToTwoDigits(event.startHours)}:{timeToTwoDigits(event.startMinutes)}-
+                                                            {timeToTwoDigits(event.endHours === 24 ? 0 : event.endHours)}:{timeToTwoDigits(event.endMinutes)}
                                                         </p>
                                                     )}
-                                                    <p>{event.description}</p>
+                                                    {totalMinutes >= 90 && <p className="text-sm">{event.description}</p>}
                                                 </div>
                                                 {hoveredEventId === event.eventId &&
                                                     mouseAction !== MOUSE_ACTION.CREATE && event.endHours !== 24 && (
@@ -475,14 +489,18 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
                                 });
                             })}
 
+                            <div
+                                className="absolute bg-blue-400 w-full z-1 h-[1px]"
+                                style={{ top: `${timeInVh(monday.getHours(), monday.getMinutes())}vh` }}
+                            />
                             {/* Render 24 hourly slots */}
-                            {Array.from({ length: 24 }, (_: unknown, slotIndex: number) => (
+                            {Array.from({ length: 25 }, (_: unknown, slotIndex: number) => (
                                 <div
                                     key={`${bucketIndex}-${slotIndex}`}
-                                    className="border border-black w-full"
+                                    className="border-t border-r border-gray-300 w-full"
                                     style={{
                                         height: `${HOURS_HEIGHT_VH}vh`,
-                                        flexShrink: 0
+                                        flexShrink: 1
                                     }}
                                 />
                             ))}

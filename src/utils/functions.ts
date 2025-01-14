@@ -65,14 +65,20 @@ export const vhToTime = (vh: number): HoursAndMinutes => {
   return { hours, minutes };
 };
 
+export const areDatesTheSame = (date1: Date, date2: Date): boolean => {
+  return (
+    date1.getFullYear() === date2.getFullYear() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getDate() === date2.getDate()
+  );
+};
+
 export const generate24HourIntervals = (): string[] => {
   const timeArray: string[] = [];
   for (let i = 0; i < 24; i++) {
     const formattedTime = timeToTwoDigits(i);
     timeArray.push(`${formattedTime}:00`);
-    timeArray.push(`${formattedTime}:30`);
   }
-  timeArray.push("00:00");
   return timeArray;
 };
 
@@ -138,7 +144,6 @@ export const handleKeyboard = (callback: () => void): (() => void) => {
   return () => window.removeEventListener("keydown", handleKeyboardEvent);
 };
 
-// const now: Date = toZonedTime(new Date().setHours(0, 0, 0, 0), timeZone); // MAYBE CHANGE THIS ONE
 export const mostRecentMonday = (timeZone: string, date?: Date): Date => {
   const now: Date = toZonedTime(date ? date : new Date(), timeZone);
   const daysSinceMonday: number = now.getDay() === 0 ? 6 : now.getDay() - 1;

@@ -1,6 +1,6 @@
 import React from "react";
 import { DAYS } from "../../utils/constants";
-import { addDateBy } from "@utils/functions";
+import { addDateBy, areDatesTheSame } from "@utils/functions";
 
 
 interface DaysOfTheWeekProps {
@@ -9,16 +9,23 @@ interface DaysOfTheWeekProps {
 
 export const DaysOfTheWeek: React.FC<DaysOfTheWeekProps> = ({ monday }) => (
 
-  <div className="flex w-full h-full gap-0">
+  <div className="flex w-full h-full">
     {DAYS.map((day: string, index: number) => {
-      const dayOfTheMonth: number = addDateBy(monday, index).getDate();
+      const newDay: Date = addDateBy(monday, index)
+      const dayOfTheMonth: number = newDay.getDate();
+
       return <div
         key={index + day}
-        className="border border-black text-center flex-1"
+        className="text-center flex-1 flex items-center justify-center gap-2"
       >
-        {dayOfTheMonth}
-        <br />
-        {day}
+        <div>
+          {day[0] + day.slice(1, 3).toLowerCase()}
+        </div>
+        <div
+          className={`rounded-full  w-6 ${areDatesTheSame(newDay, monday) ? 'text-white bg-blue-500' : 'text-black'}`}
+        >
+          {dayOfTheMonth}
+        </div>
       </div>
     })}
   </div>

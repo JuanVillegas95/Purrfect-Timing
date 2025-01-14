@@ -33,6 +33,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ initCalendarData: { initia
     const [isLoadingEvents, setIsLoadingEvents] = useState<boolean>(false);
     const hoursOfTheDayRef = useRef<HTMLDivElement>(null);
     const mainGridRef = useRef<HTMLDivElement>(null);
+    const [currentMousePosVh, setCurrentMousePosVh] = useState<number>();
+
 
     useEffect(() => {
         const cleanupScroll = syncScroll(hoursOfTheDayRef, mainGridRef);
@@ -296,6 +298,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ initCalendarData: { initia
                     timeZone={currentTimeZone}
                     isLoadingEvents={isLoadingEvents}
                     range={range}
+                    switchTimeZone={switchTimeZone}
+
                 />
             </div>
             <div className="row-start-2 row-end-[-1] col-start-1 w-full">
@@ -308,12 +312,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ initCalendarData: { initia
                     monday={monday}
                 />
             </div>
-            <div className="row-start-2 row-end-[-1] col-start-2 col-end-3 h-full">
+            <div className="row-start-2 row-end-[-1] col-start-2 col-end-3">
                 <HoursOfTheDay
                     ref={hoursOfTheDayRef}
+                    currentMousePosVh={currentMousePosVh}
+
                 />
             </div>
             <div className="row-start-3 col-start-3 col-end-[-1]">
+
                 <MainGrid
                     ref={mainGridRef}
                     monday={monday}
@@ -326,6 +333,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initCalendarData: { initia
                     setSingleEvent={setSingleEvent}
                     getEventById={(eventId: string) => eventIdToEvent.get(eventId)}
                     deleteSingleEvent={deleteSingleEvent}
+                    setCurrentMousePosVh={(currPos: number) => setCurrentMousePosVh(currPos)}
                 />
             </div>
             {
@@ -338,8 +346,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initCalendarData: { initia
                     closeActiveModal={closeModal}
                     calendarId={currentCalendarId}
                     timeZone={currentTimeZone}
-                    switchTimeZone={switchTimeZone}
-
+                    switchCalendar={switchCalendar}
                 />
             }
         </div >

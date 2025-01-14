@@ -15,12 +15,11 @@ interface ActiveModalProps {
     setActivePicker: (picker: PICKERS) => void;
     timeZone: string;
     calendarId: string;
-    switchTimeZone: (timeZone: string) => void;
     currentCalendarId: string;
-
+    switchCalendar: (calendarId: string) => Promise<void>;
 }
 
-export const ActiveModal: React.FC<ActiveModalProps> = ({ currentCalendarId, switchTimeZone, timeZone, setActivePicker, activePicker, activeModal, closeActiveModal, currentEvent, calendarId }) => {
+export const ActiveModal: React.FC<ActiveModalProps> = ({ currentCalendarId, timeZone, setActivePicker, activePicker, activeModal, closeActiveModal, currentEvent, calendarId, switchCalendar }) => {
     const renderContent = () => {
         switch (activeModal) {
             case MODALS.EVENT:
@@ -32,12 +31,10 @@ export const ActiveModal: React.FC<ActiveModalProps> = ({ currentCalendarId, swi
                     timeZone={timeZone}
                     currentCalendarId={currentCalendarId}
                 />;
-            case MODALS.FRIENDS:
-                return <div></div>
             case MODALS.CALENDARS:
-                return <CalendarModal calendarId={calendarId} closeActiveModal={closeActiveModal} />
+                return <CalendarModal currentCalendarId={currentCalendarId} switchCalendar={switchCalendar} />
             case MODALS.PROFILE:
-                return <ProfileModal switchTimeZone={switchTimeZone} timeZone={timeZone} />
+                return <ProfileModal />
             case MODALS.ABOUT_US:
                 return <AboutUsModal />
             default:
@@ -45,7 +42,7 @@ export const ActiveModal: React.FC<ActiveModalProps> = ({ currentCalendarId, swi
         }
     };
 
-    return <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-2147483646">
+    return <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white p-8 flex items-center justify-center rounded-lg relative z-60 shadow-md">
             <button
                 className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"

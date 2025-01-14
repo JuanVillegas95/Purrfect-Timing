@@ -15,7 +15,7 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ isActive, open, close,
     const [selectedColor, setSelectedColor] = useState<string>(value);
 
     return <div
-        className="py-2 px-2 border-gray-300 border rounded-md relative hover:cursor-pointer flex justify-center items-center"
+        className="py-2 px-2 relative hover:cursor-pointer flex justify-center items-center"
         onClick={() => isActive ? close() : open()}
     >
         <input
@@ -23,7 +23,7 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ isActive, open, close,
             name="COLOR"
             value={selectedColor}
             readOnly
-            className="w-6 h-6 rounded-full border cursor-pointer text-transparent"
+            className="w-6 h-6 rounded-full border cursor-pointer border-black text-transparent focus:invisible"
             style={{
                 backgroundColor: selectedColor,
             }}

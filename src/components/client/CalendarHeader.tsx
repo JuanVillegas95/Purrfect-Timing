@@ -14,12 +14,13 @@ interface CalendarHeaderProps {
     timeZone: string
     isLoadingEvents: boolean
     range: Range
-}
-export const CalendarHeader: React.FC<CalendarHeaderProps> = ({ monday, calendarNavigation, timeZone, isLoadingEvents, range }) => {
+    switchTimeZone: (timeZone: string) => void;
 
-    return <div className="flex items-center justify-start gap-4">
-        <React.Fragment>
-            <div className="relative ml-4">
+}
+export const CalendarHeader: React.FC<CalendarHeaderProps> = ({ monday, calendarNavigation, timeZone, isLoadingEvents, range, switchTimeZone }) => {
+    return <div className="flex justify-between items-center h-full w-full text-blue-500 pr-2">
+        <div className="flex items-center h-full gap-2 ml-4">
+            {/* <div className="relative ">
                 <Image
                     src={logo.src}
                     height={LOGO_SIZE}
@@ -27,17 +28,42 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({ monday, calendar
                     alt="logo"
                     priority
                 />
+            </div> */}
+            <div className="text-xl flex gap-2 font-semibold">
+                <p >
+                    {formatMonthRange(monday)}
+                </p>
+                <p>
+                    {monday.getFullYear()}
+                </p>
             </div>
-            <p>Calendar Name</p>
-        </React.Fragment>
-        <React.Fragment>
-            <p>{timeToTwoDigits(monday.getHours())} : {timeToTwoDigits(monday.getMinutes())}</p>
-            <p>{ianaToReadable(timeZone)}</p>
-            <p onClick={isLoadingEvents ? undefined : () => calendarNavigation("today")}>Today</p>
-            <p>{formatMonthRange(monday)}</p>
-            <Icon icon={FaChevronLeft} onClick={isLoadingEvents ? undefined : () => calendarNavigation("prev")} />
-            <Icon icon={FaChevronRight} onClick={isLoadingEvents ? undefined : () => calendarNavigation("next")} />
-            <p>{range.start}__{calculateRangeDays(range.start, range.end)}__{range.end}</p>
-        </React.Fragment>
-    </div>
+        </div>
+        <div className="flex gap-1 items-center h-full ">
+            <Icon
+                icon={FaChevronLeft}
+                onClick={isLoadingEvents ? undefined : () => calendarNavigation("prev")}
+                iconSize="16px"
+                divWidth="16px"
+                divHeight="16px"
+                className="hover:text-blue-400 "
+            />
+            <p
+                onClick={isLoadingEvents ? undefined : () => calendarNavigation("today")}
+                className="text-base hover:text-blue-400 hover:cursor-pointer "
+            >
+                Today
+            </p>
+            <Icon
+                icon={FaChevronRight}
+                onClick={isLoadingEvents ? undefined : () => calendarNavigation("next")}
+                iconSize="16px"
+                divWidth="16px"
+                divHeight="16px"
+                className="hover:text-blue-400 mr-2"
+
+
+            />
+            <TimeZonePicker timeZone={timeZone} switchTimeZone={switchTimeZone} />
+        </div>
+    </div >
 };

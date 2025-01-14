@@ -27,7 +27,7 @@ export const TimeZonePicker: React.FC<TimeZonePickerProps> = ({
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
         setFilterText(value);
-        setIsActive(true); // Keep the dropdown open when filtering
+        setIsActive(true);
     };
 
     const handleSelectTimeZone = (tz: string) => {
@@ -37,11 +37,10 @@ export const TimeZonePicker: React.FC<TimeZonePickerProps> = ({
     };
 
     return (
-        <div className="flex flex-col w-full relative">
+        <div className="flex flex-col w-full relative text-black">
             <div
                 className={`flex items-center justify-between w-64 px-4 py-2 border rounded-md shadow-sm focus:ring hover:cursor-pointer ${error ? "border-red-500 focus:ring-red-400" : "border-gray-300 focus:ring-blue-300"
                     } hover:bg-gray-50`}
-                onClick={() => setIsActive(true)}
             >
                 <input
                     type="text"
@@ -57,6 +56,8 @@ export const TimeZonePicker: React.FC<TimeZonePickerProps> = ({
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
+                    onClick={() => setIsActive(!isActive)}
+
                 >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>

@@ -8,21 +8,21 @@ interface IconProps {
     divWidth?: string;
     divHeight?: string
     onClick?: () => void
+    className?: string;
 }
 
 export const Icon: React.FC<IconProps> = ({
     icon,
-    border,
     iconSize = "32px",
     divWidth = "64px",
     divHeight = "64px",
-    onClick
+    onClick,
+    className = ""
 }) => {
-    const borderClass = border ? " border-gray-300 border rounded-md " : "";
 
     return (
         <div
-            className={`flex items-center justify-center hover:cursor-pointer ${borderClass}`}
+            className={`flex items-center justify-center hover:cursor-pointer ${className}`}
             style={{
                 width: divWidth,
                 height: divHeight,

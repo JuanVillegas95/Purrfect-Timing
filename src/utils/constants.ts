@@ -1,9 +1,9 @@
 import { Event, EventActionsState, CalendarActionsState } from "./interfaces";
 
 export const HEADER_HEIGTH_ASIDE_WIDTH: number = 64; //multiple of 8, originally was set to 64
-export const DAYS_HEIGTH_HOURS_WIDTH: number = 84;
-export const LOGO_SIZE = HEADER_HEIGTH_ASIDE_WIDTH - 10;
-export const HOURS_HEIGHT_VH: number = 4;
+export const DAYS_HEIGTH_HOURS_WIDTH: number = 48;
+export const LOGO_SIZE = HEADER_HEIGTH_ASIDE_WIDTH - 24;
+export const HOURS_HEIGHT_VH: number = 6;
 
 export const LEFT_MOUSE_CLICK: number = 0;
 export const EVENT_TITLE_MAX_LENGTH: number = 40;

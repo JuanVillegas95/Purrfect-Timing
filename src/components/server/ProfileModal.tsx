@@ -3,11 +3,8 @@ import { TimeZonePicker } from "@ui/TimeZonePicker";
 import { Avatar } from "@ui/Avatar";
 import image from "@public/beautiful-latin-woman-avatar-character-icon-free-vector.jpg"
 
-interface ProfileModalProps {
-    timeZone: string;
-    switchTimeZone: (timeZone: string) => void;
-}
-export const ProfileModal: React.FC<ProfileModalProps> = ({ timeZone, switchTimeZone }) => {
+interface ProfileModalProps { }
+export const ProfileModal: React.FC<ProfileModalProps> = () => {
     return <div className="w-auto">
         <h1 className="text-2xl font-bold text-gray-800 mb-4">Hi!</h1>
         <p className="text-gray-600 mb-6">Profile Info</p>
@@ -29,7 +26,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ timeZone, switchTime
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
                     placeholder="Enter your surname"
                 />
-                <TimeZonePicker timeZone={timeZone} switchTimeZone={switchTimeZone} />
             </div>
         </div>
     </div>
