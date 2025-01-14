@@ -388,9 +388,9 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
 
         return (
             <div
-                // ref={ref}
-                className="grid grid-cols-7 overflow-scroll h-full relative"
-                style={{ maxHeight: `calc(100vh - ${HEADER_HEIGTH_ASIDE_WIDTH + DAYS_HEIGTH_HOURS_WIDTH}px)` }}
+                ref={ref}
+                className="grid grid-cols-7 overflow-scroll relative"
+                style={{ maxHeight: `calc(100vh - ${HEADER_HEIGTH_ASIDE_WIDTH + DAYS_HEIGTH_HOURS_WIDTH - 10}px)` }}
                 onMouseLeave={() => onMouseUp()}
 
                 onMouseUp={() => onMouseUp()}
@@ -493,9 +493,9 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
                                 className="absolute bg-blue-400 w-full z-1 h-[1px]"
                                 style={{ top: `${timeInVh(monday.getHours(), monday.getMinutes())}vh` }}
                             />
-                            {/* Render 24 hourly slots */}
-                            {Array.from({ length: 25 }, (_: unknown, slotIndex: number) => (
-                                <div
+                            {Array.from({ length: 24 }, (_: unknown, slotIndex: number) => {
+
+                                return <div
                                     key={`${bucketIndex}-${slotIndex}`}
                                     className="border-t border-r border-gray-300 w-full"
                                     style={{
@@ -503,7 +503,7 @@ export const MainGrid = forwardRef<HTMLDivElement, MainGridProps>(
                                         flexShrink: 1
                                     }}
                                 />
-                            ))}
+                            })}
                         </div>
                     );
                 })}

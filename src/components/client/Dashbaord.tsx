@@ -287,11 +287,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ initCalendarData: { initia
         <div
             className="grid h-screen"
             style={{
-                gridTemplateRows: `${HEADER_HEIGTH_ASIDE_WIDTH}px ${DAYS_HEIGTH_HOURS_WIDTH}px repeat(8, 1fr)`,
-                gridTemplateColumns: `${HEADER_HEIGTH_ASIDE_WIDTH}px ${DAYS_HEIGTH_HOURS_WIDTH}px repeat(14, 1fr)`,
+                gridTemplateRows: `${HEADER_HEIGTH_ASIDE_WIDTH}px auto 1fr`,
+                gridTemplateColumns: `${HEADER_HEIGTH_ASIDE_WIDTH}px auto 1fr`,
             }}
         >
-            <div className="col-span-full row-start-1 bg-red">
+            <div className="col-span-full row-start-1 row-end-2 bg-red">
                 <CalendarHeader
                     monday={monday}
                     calendarNavigation={(direction: "next" | "prev" | "today") => calendarNavigation(direction)}
@@ -302,25 +302,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ initCalendarData: { initia
 
                 />
             </div>
-            <div className="row-start-2 row-end-[-1] col-start-1 w-full">
+            <div className="row-start-2 row-end-[-1] col-start-1 col-end-2 w-full">
                 <AsideButtons
                     setActiveModal={setActiveModal}
                 />
             </div>
-            <div className="row-start-2 col-start-3 col-end-[-1]">
+            <div className="row-start-2 row-end-3 col-start-3 col-end-[-1]">
                 <DaysOfTheWeek
                     monday={monday}
                 />
             </div>
-            <div className="row-start-2 row-end-[-1] col-start-2 col-end-3">
+            <div
+                ref={hoursOfTheDayRef}
+                className="row-start-2  row-end-[-1] col-start-2 col-end-3  overflow-scroll mt-8"
+            >
                 <HoursOfTheDay
                     ref={hoursOfTheDayRef}
                     currentMousePosVh={currentMousePosVh}
 
                 />
             </div>
-            <div className="row-start-3 col-start-3 col-end-[-1]">
-
+            <div className="row-start-3 row-end-[-1] col-start-3 col-end-[-1]">
                 <MainGrid
                     ref={mainGridRef}
                     monday={monday}

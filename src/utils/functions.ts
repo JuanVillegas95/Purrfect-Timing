@@ -79,6 +79,8 @@ export const generate24HourIntervals = (): string[] => {
     const formattedTime = timeToTwoDigits(i);
     timeArray.push(`${formattedTime}:00`);
   }
+  timeArray.push(`00:00`);
+
   return timeArray;
 };
 
@@ -102,31 +104,44 @@ export const syncScroll = (
   hoursOfTheDay: React.RefObject<HTMLElement | undefined>,
   mainGrid: React.RefObject<HTMLElement | undefined>,
 ): (() => void) => {
-  const syncScrollHandler = () => {
-    if (
-      hoursOfTheDay &&
-      mainGrid &&
-      hoursOfTheDay.current &&
-      mainGrid.current
-    ) {
-      const maxScrollTop =
-        hoursOfTheDay.current.scrollHeight - hoursOfTheDay.current.clientHeight;
-      const scrollTop = mainGrid.current.scrollTop;
+  let isSyncingHours = false; // Prevent recursive updates
+  let isSyncingGrid = false;
 
-      if (scrollTop > maxScrollTop) {
-        mainGrid.current.scrollTop = maxScrollTop;
-      }
-
-      hoursOfTheDay.current.scrollTop = mainGrid.current.scrollTop;
+  const syncScrollHandlerForMainGrid = () => {
+    if (!hoursOfTheDay.current || !mainGrid.current || isSyncingHours) {
+      return;
     }
+    isSyncingGrid = true; // Prevent recursive triggering
+    hoursOfTheDay.current.scrollTop = mainGrid.current.scrollTop;
+    isSyncingGrid = false;
   };
 
-  hoursOfTheDay.current?.addEventListener("scroll", syncScrollHandler);
-  mainGrid.current?.addEventListener("scroll", syncScrollHandler);
+  const syncScrollHandlerForHoursOfTheDay = () => {
+    if (!hoursOfTheDay.current || !mainGrid.current || isSyncingGrid) {
+      return;
+    }
+    isSyncingHours = true; // Prevent recursive triggering
+    mainGrid.current.scrollTop = hoursOfTheDay.current.scrollTop;
+    isSyncingHours = false;
+  };
 
+  // Attach event listeners
+  mainGrid.current?.addEventListener("scroll", syncScrollHandlerForMainGrid);
+  hoursOfTheDay.current?.addEventListener(
+    "scroll",
+    syncScrollHandlerForHoursOfTheDay,
+  );
+
+  // Cleanup function to remove event listeners
   return () => {
-    hoursOfTheDay.current?.removeEventListener("scroll", syncScrollHandler);
-    mainGrid.current?.removeEventListener("scroll", syncScrollHandler);
+    mainGrid.current?.removeEventListener(
+      "scroll",
+      syncScrollHandlerForMainGrid,
+    );
+    hoursOfTheDay.current?.removeEventListener(
+      "scroll",
+      syncScrollHandlerForHoursOfTheDay,
+    );
   };
 };
 
