@@ -1,13 +1,14 @@
 "use client"
-import React, { useState, createContext, useContext, useEffect } from "react";
+import React, { useState, createContext, useContext, useEffect, useRef } from "react";
 import { signInWithPopup, GoogleAuthProvider, signOut, GithubAuthProvider, onAuthStateChanged, UserCredential, User } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { UserServer } from "@utils/interfaces";
+import { ApiResponse, DBUser, DBCalendar, ClientUser } from "@utils/interfaces";
 import { auth } from "@db/firebaseClient";
-import { createSessionServer } from "@db/serverActions";
+import { createSession } from "@db/serverActions";
+import { API_STATUS } from "@utils/constants";
 
 const AuthContext = createContext<{
-    user: userClient | null;
+    user: ClientUser | null;
     error: string,
     isSigningIn: boolean,
     signIn: (providerName: "google" | "github") => Promise<void>
@@ -20,40 +21,52 @@ export const useAuth = () => {
     return context;
 };
 
-interface userClient {
-    uid: string,
-    name: string,
-    email: string
-}
-
 const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-    const [user, setUser] = useState<userClient | null>(null);
+    const [user, setUser] = useState<ClientUser | null>(null);
     const [isSigningIn, setIsSigningIn] = useState(false);
     const [error, setError] = useState<string>("");
     const router = useRouter()
-
+    const sessionCheckedRef = useRef(false);
     useEffect(() => {
+
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
-            if (firebaseUser) {
-                const { uid, email, displayName: name } = firebaseUser;
-                if (uid && email && name) {
-                    try {
-                        await createSessionServer(uid, email, name);
-                        setUser({ email, name, uid });
-                    } catch (err) {
-                        console.error("Session creation failed:", err);
-                        setError("Failed to create session.");
-                    }
-                } else {
-                    setError("Incomplete user information.");
+            if (!firebaseUser || !firebaseUser.email || !firebaseUser.displayName) {
+                setUser(null); // Clear session if user is logged out
+                sessionCheckedRef.current = false; // Reset for future logins
+                return;
+            }
+
+            const { uid, email, displayName } = firebaseUser;
+
+            // Avoid calling createSession if session has already been established
+            if (sessionCheckedRef.current) {
+                console.log("Session already checked, skipping createSession.");
+                return;
+            }
+
+            try {
+                // Attempt to create/retrieve a session
+                const res: ApiResponse<ClientUser> = await createSession(uid, email, displayName);
+
+                if (res.status !== API_STATUS.SUCCESS) {
+                    console.error("Failed to create session:", res.error);
+                    setError("Failed to create session.");
+                    setUser(null); // Clear user if session creation fails
+                    return;
                 }
-            } else {
-                setUser(null);
+
+                setUser(res.data); // Update user state
+                sessionCheckedRef.current = true; // Mark session as handled
+            } catch (err) {
+                console.error("Session creation failed:", err);
+                setError("Failed to create session.");
+                setUser(null); // Clear user on error
             }
         });
 
         return () => unsubscribe();
-    }, []);
+    }, []); // No dependency on user, avoiding infinite loops
+
 
     const signIn = async (providerName: "google" | "github"): Promise<void> => {
         setIsSigningIn(true);
@@ -85,8 +98,6 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             console.error("Error during sign-out:", error);
         }
     };
-
-
 
     return <AuthContext.Provider value={{ user, signIn, signOut: signOutUser, isSigningIn, error }}>
         {children}

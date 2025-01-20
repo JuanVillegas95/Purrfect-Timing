@@ -1,4 +1,5 @@
-import { EVENT_NAMES } from "@utils/constants";
+import { API_STATUS, EVENT_NAMES } from "@utils/constants";
+import { ButtonVariants, CalendarType, UserPlan } from "./types";
 
 export interface GroupedAttributes {
   groupId: string | null;
@@ -46,26 +47,24 @@ export interface Range {
   end: string;
 }
 
-export interface UserServer {
-  name: string;
-  email: string;
-  createdAt: Date;
-  calendars: string[];
+export interface DBNotification {
+  requestingUserId: string;
+  targetCalendarId: string;
+  requestingUserName: string;
+  targetCalendarName: string;
 }
 
-export interface CalendarServer {
+export interface ClientNotification extends DBNotification {
   id: string;
-  members: string[];
-  name: string;
-  owner: string;
 }
 
 export interface InitialFetch {
-  ownedCalendars: CalendarServer[];
-  memberCalendars: CalendarServer[];
+  initalOwnedCalendars: DBCalendar[];
+  initalMemberCalendars: DBCalendar[];
   initalSingle: Event[];
   initalRecurring: Event[];
   initialCalendarId: string;
+  initialNotifications: DBNotification[];
 }
 
 export interface FetchedEvents {
@@ -75,4 +74,54 @@ export interface FetchedEvents {
 export interface HoursAndMinutes {
   hours: number;
   minutes: number;
+}
+
+export interface PlanLimitations {
+  maxSingleEvents: number;
+  maxRecurringEvents: number;
+  maxNotifications: number;
+  maxOwnedCalendars: number;
+  maxMemberCalendars: number;
+  isFreeColorUse: boolean;
+}
+
+export interface ApiResponse<T = any> {
+  data: T | null;
+  message: string;
+  error: string | null;
+  status: API_STATUS;
+}
+
+export interface DBUser {
+  name: string;
+  email: string;
+  createdAt: string;
+  calendars: string[];
+  plan: UserPlan;
+}
+
+export interface ClientUser extends DBUser {
+  userId: string;
+  notifications: Map<string, Notification>;
+}
+
+export interface DBCalendar {
+  members: string[];
+  name: string;
+  owner: string;
+}
+
+export interface ClientCalendar extends DBCalendar {
+  id: string;
+  tag: CalendarType;
+}
+
+export interface ButtonProps {
+  label?: string;
+  disbaled?: boolean;
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  formAction?: (formData: FormData) => void;
+  className?: string;
+  variant?: ButtonVariants;
+  isWithTextInput?: boolean;
 }

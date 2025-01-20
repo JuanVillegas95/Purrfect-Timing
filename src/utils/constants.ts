@@ -1,4 +1,14 @@
-import { Event, EventActionsState, CalendarActionsState } from "./interfaces";
+import { generateCalendarId } from "@db/clientActions";
+import {
+  Event,
+  EventActionsState,
+  CalendarActionsState,
+  PlanLimitations,
+  DBCalendar,
+  ApiResponse,
+  ClientCalendar,
+} from "./interfaces";
+import { UserPlan } from "./types";
 
 export const HEADER_HEIGTH_ASIDE_WIDTH: number = 64; //multiple of 8, originally was set to 64
 export const DAYS_HEIGTH_HOURS_WIDTH: number = 48;
@@ -33,7 +43,7 @@ export const enum MODALS {
   EVENT,
   CALENDARS,
   LOADING,
-  FRIENDS,
+  NOTIFICATIONS,
   PROFILE,
   ABOUT_US,
 }
@@ -68,6 +78,25 @@ export const enum MOUSE_ACTION {
   NONE,
 }
 
+export const enum CALENDAR_MODAL_ACTION {
+  START_EDIT,
+  CANCEL_EDIT,
+  SAVE_EDIT,
+  MEMBER,
+  DELETE,
+  SWITCH,
+  NONE,
+  ADD,
+  NEW,
+}
+
+export enum API_STATUS {
+  SUCCESS,
+  FAILED,
+  PENDING,
+  VALIDATION_BLOCKED,
+  NONE,
+}
 export const CLICK_THRESHOLD = 200;
 
 export const USER_ID: string = "BtXktmE5bOU5RHtNlw9vji9tcV23";
@@ -122,9 +151,7 @@ export enum EVENT_FETCH_TESHHOLDS {
 }
 
 export const INTIAL_RANGE: number = 14;
-
 export const MIN_DURATION_MINS = 15;
-
 export const MIN_START_HOURS = 0;
 export const MIN_START_MINUTES = 0;
 export const MAX_END_HOURS = 23;
@@ -132,3 +159,39 @@ export const MAX_END_MINUTES = 59;
 
 export const MIN_START_MINS = 0;
 export const MAX_END_MINS = 22 * 60 + 59;
+
+export const PLAN_LIMITATIONS: Record<UserPlan, PlanLimitations> = {
+  FREE: {
+    maxSingleEvents: 100,
+    maxNotifications: 5,
+    maxOwnedCalendars: 3,
+    maxMemberCalendars: 1,
+    isFreeColorUse: false,
+    maxRecurringEvents: 10,
+  },
+  PAID: {
+    maxSingleEvents: 0,
+    maxNotifications: 5,
+    maxOwnedCalendars: 3,
+    maxMemberCalendars: 1,
+    isFreeColorUse: false,
+    maxRecurringEvents: 0,
+  },
+};
+
+export const enum CALENDAR_NAMES {
+  CALENDAR_ID = "CALENDAR_ID",
+}
+
+export const BLANK_DB_CALENDAR: DBCalendar = {
+  members: [],
+  name: "New Calendar",
+  owner: "",
+};
+
+export const BLANK_API_RESPONSE: ApiResponse = {
+  data: null,
+  message: "",
+  error: null,
+  status: API_STATUS.NONE,
+};

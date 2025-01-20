@@ -14,12 +14,14 @@ import { toZonedTime } from "date-fns-tz";
 import { auth, db } from "@db/firebaseClient";
 import { collection, doc, getDoc, onSnapshot, query, where } from "firebase/firestore";
 import { generateEventId, getEvents } from "@db/clientActions";
+import { useAuth } from "@context/AuthContext";
+import { LoadingSpinner } from "@ui/LoadingSpinner";
 
 interface DashboardProps {
     initCalendarData: InitialFetch
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ initCalendarData: { initialCalendarId, initalRecurring, initalSingle } }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ initCalendarData: { initialNotifications, initialCalendarId, initalRecurring, initalSingle, initalMemberCalendars, initalOwnedCalendars } }) => {
     const [currentCalendarId, setCurrentCalendarId] = useState<string>(initialCalendarId)
     const [currentTimeZone, setCurrentTimeZone] = useState<string>(localTimeZone());
     const [range, setRange] = useState<Range>(getISORange(INTIAL_RANGE, currentTimeZone))
@@ -34,6 +36,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initCalendarData: { initia
     const hoursOfTheDayRef = useRef<HTMLDivElement>(null);
     const mainGridRef = useRef<HTMLDivElement>(null);
     const [currentMousePosVh, setCurrentMousePosVh] = useState<number>();
+    const { user } = useAuth();
 
 
     useEffect(() => {
@@ -270,10 +273,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ initCalendarData: { initia
     }
 
 
-
-
-
-
     const getEventWeekBuckets = (): Event[][] =>
         getWeekBuckets(formatDateToISO(monday), weekStartToBuckets).map(
             (dayOfTheWeek) =>
@@ -282,6 +281,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ initCalendarData: { initia
                     .filter((event): event is Event => Boolean(event))
         );
 
+    if (!user) return <LoadingSpinner text="Loading Calendar..." />
 
     return <React.Fragment>
         <div
@@ -319,7 +319,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ initCalendarData: { initia
                 <HoursOfTheDay
                     ref={hoursOfTheDayRef}
                     currentMousePosVh={currentMousePosVh}
-
                 />
             </div>
             <div className="row-start-3 row-end-[-1] col-start-3 col-end-[-1]">
@@ -340,15 +339,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ initCalendarData: { initia
             </div>
             {
                 activeModal !== MODALS.NONE && <ActiveModal
+                    initalMemberCalendars={initalMemberCalendars}
+                    initalOwnedCalendar={initalOwnedCalendars}
                     currentCalendarId={currentCalendarId}
                     activeModal={activeModal}
                     currentEvent={currentEvent}
                     activePicker={activePicker}
                     setActivePicker={(picker: PICKERS) => setActivePicker(picker)}
                     closeActiveModal={closeModal}
-                    calendarId={currentCalendarId}
                     timeZone={currentTimeZone}
                     switchCalendar={switchCalendar}
+                    initialNotifications={initialNotifications}
                 />
             }
         </div >

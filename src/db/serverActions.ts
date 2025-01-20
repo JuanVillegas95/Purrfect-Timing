@@ -1,4 +1,5 @@
 "use server";
+import { UserPlan } from "@utils/types";
 import {
   addDoc,
   collection,
@@ -22,6 +23,8 @@ import {
   EVENT_NAMES,
   BLANK_CALENDAR_ACTIONS_STATE,
   INTIAL_RANGE,
+  BLANK_API_RESPONSE,
+  API_STATUS,
 } from "@utils/constants";
 import {
   addDateBy,
@@ -35,90 +38,141 @@ import {
 import {
   CalendarActionsState,
   Event,
-  UserServer,
-  CalendarServer,
+  DBCalendar,
   InitialFetch,
   Range,
+  DBNotification,
+  ApiResponse,
+  DBUser,
+  ClientCalendar,
+  ClientUser,
+  ClientNotification,
 } from "@utils/interfaces";
 
 import { auth, db } from "@db/firebaseClient";
-import { createSession, decrypt } from "@db/session";
+import { decrypt, encrypt } from "@db/session";
 import { adminAuth, adminDb } from "@db/firebaseAdmin";
 import { cookies } from "next/headers";
 import { fromZonedTime } from "date-fns-tz";
 
-export const createSessionServer = async (
+export const createSession = async (
   uid: string,
   email: string,
   name: string,
-) => {
-  const user = await adminDb.collection("users").doc(uid).get();
-  if (!user.exists) {
-    const newCalendar = {
-      name: "New calendar",
-      members: [],
-      owner: user.id,
+): Promise<ApiResponse<ClientUser>> => {
+  try {
+    const user = await adminDb.collection("users").doc(uid).get();
+    if (!user.exists) {
+      const newCalendar = {
+        name: "New calendar",
+        members: [],
+        owner: uid,
+      };
+
+      const calendarDocRef = await adminDb
+        .collection("calendars")
+        .add(newCalendar);
+
+      const newUser: DBUser = {
+        email,
+        name,
+        createdAt: new Date().toISOString(),
+        calendars: [calendarDocRef.id],
+        plan: "FREE" as UserPlan,
+      };
+
+      await adminDb.collection("users").doc(uid).set(newUser);
+
+      return {
+        ...BLANK_API_RESPONSE,
+        data: { ...newUser, userId: uid, notifications: new Map() },
+        status: API_STATUS.SUCCESS,
+      };
+    }
+
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const session = await encrypt({ userId: uid, expiresAt });
+    (await cookies()).set("session", session, {
+      httpOnly: true,
+      secure: true,
+      expires: expiresAt,
+    });
+
+    return {
+      ...BLANK_API_RESPONSE,
+      data: { ...(user.data() as ClientUser), userId: user.id },
+      status: API_STATUS.SUCCESS,
     };
-
-    const calendarDocRef = await adminDb
-      .collection("calendars")
-      .add(newCalendar);
-
-    const newUser: UserServer = {
-      email,
-      name,
-      createdAt: new Date(),
-      calendars: [calendarDocRef.id],
+  } catch (error) {
+    return {
+      ...BLANK_API_RESPONSE,
+      status: API_STATUS.FAILED,
+      message:
+        error instanceof Error ? error.message : "An unexpected error occurred",
     };
-
-    await adminDb.collection("users").doc(uid).set(newUser);
   }
-
-  await createSession(uid);
 };
 
 export const initalFetch = async (): Promise<InitialFetch | null> => {
   try {
     const cookie = (await cookies()).get("session")?.value;
     const session = await decrypt(cookie);
-    const userId = session?.userId;
+    const userId: string = session?.userId as string;
+
     if (!userId) {
       throw new Error("User is not authenticated through the cookie session");
     }
+    const notificationsRef = adminDb
+      .collection("users")
+      .doc(userId)
+      .collection("notifications");
 
-    const [ownedCalendarsSnapshot, memberCalendarsSnapshot] = await Promise.all(
-      [
+    const notificationSnapshot = await notificationsRef.get();
+
+    const initialNotifications: ClientNotification[] =
+      notificationSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          requestingUserId: data.requestingUserId,
+          targetCalendarId: data.targetCalendarId,
+          requestingUserName: data.requestingUserName,
+          targetCalendarName: data.targetCalendarName,
+        };
+      }) || [];
+
+    const [initalOwnedCalendarsSnapshot, initalMemberCalendarsSnapshot] =
+      await Promise.all([
         adminDb.collection("calendars").where("owner", "==", userId).get(),
         adminDb
           .collection("calendars")
           .where("members", "array-contains", userId)
           .get(),
-      ],
-    );
+      ]);
 
-    const ownedCalendars: CalendarServer[] = ownedCalendarsSnapshot.docs.map(
-      doc => ({
+    const initalOwnedCalendars: ClientCalendar[] =
+      initalOwnedCalendarsSnapshot.docs.map(doc => ({
         id: doc.id,
         members: doc.data().members,
         name: doc.data().name,
         owner: doc.data().owner,
-      }),
-    );
+        tag: "OWNED",
+      }));
 
-    const memberCalendars: CalendarServer[] = memberCalendarsSnapshot.docs.map(
-      doc => ({
+    const initalMemberCalendars: ClientCalendar[] =
+      initalMemberCalendarsSnapshot.docs.map(doc => ({
         id: doc.id,
         members: doc.data().members,
         name: doc.data().name,
         owner: doc.data().owner,
-      }),
-    );
+        tag: "MEMEBER",
+      }));
 
-    if (ownedCalendars.length <= 0) {
+    if (initalOwnedCalendars.length <= 0) {
       throw new Error("authenticated user does not has an owned calendar");
     }
 
-    const firstOwnedCalendar: CalendarServer = ownedCalendars[0];
+    const firstOwnedCalendar: ClientCalendar = initalOwnedCalendars[0];
     const eventsRef = adminDb
       .collection("calendars")
       .doc(firstOwnedCalendar.id)
@@ -176,11 +230,12 @@ export const initalFetch = async (): Promise<InitialFetch | null> => {
     });
 
     return {
-      ownedCalendars,
-      memberCalendars,
+      initalOwnedCalendars,
+      initalMemberCalendars,
       initalSingle,
       initalRecurring,
       initialCalendarId: firstOwnedCalendar.id,
+      initialNotifications,
     };
   } catch (error) {
     console.error("Error during initialFetch:", error);

@@ -1,11 +1,13 @@
 import React, { useState } from "react";
 import { MODALS, PICKERS } from "@utils/constants";
-import { FriendsModal } from "./FriendsModal";
+import { MemberModal } from "./MemberModal";
 import { EventModal } from "./EventModal";
 import { AboutUsModal } from "./AboutUsModal";
-import { Event } from "@utils/interfaces";
+import { CalendarServer, Event, NotificationServer } from "@utils/interfaces";
 import { CalendarModal } from "./CalendarModal";
 import { ProfileModal } from "@server/ProfileModal";
+import { NotificationsModal } from "./NotificationsModal";
+import Modal from "./Modal";
 
 interface ActiveModalProps {
     activeModal: MODALS;
@@ -14,13 +16,15 @@ interface ActiveModalProps {
     activePicker: PICKERS
     setActivePicker: (picker: PICKERS) => void;
     timeZone: string;
-    calendarId: string;
     currentCalendarId: string;
     switchCalendar: (calendarId: string) => Promise<void>;
+    initalMemberCalendars: CalendarServer[];
+    initalOwnedCalendar: CalendarServer[]
+    initialNotifications: NotificationServer[]
 }
 
-export const ActiveModal: React.FC<ActiveModalProps> = ({ currentCalendarId, timeZone, setActivePicker, activePicker, activeModal, closeActiveModal, currentEvent, calendarId, switchCalendar }) => {
-    const renderContent = () => {
+export const ActiveModal: React.FC<ActiveModalProps> = ({ currentCalendarId, timeZone, setActivePicker, activePicker, activeModal, closeActiveModal, currentEvent, initialNotifications, switchCalendar, initalMemberCalendars, initalOwnedCalendar }) => {
+    const renderContent = (): React.JSX.Element => {
         switch (activeModal) {
             case MODALS.EVENT:
                 return <EventModal
@@ -32,7 +36,16 @@ export const ActiveModal: React.FC<ActiveModalProps> = ({ currentCalendarId, tim
                     currentCalendarId={currentCalendarId}
                 />;
             case MODALS.CALENDARS:
-                return <CalendarModal currentCalendarId={currentCalendarId} switchCalendar={switchCalendar} />
+                return <CalendarModal
+                    currentCalendarId={currentCalendarId}
+                    switchCalendar={switchCalendar}
+                    initalMemberCalendars={initalMemberCalendars}
+                    initalOwnedCalendar={initalOwnedCalendar}
+                />
+            case MODALS.NOTIFICATIONS:
+                return <NotificationsModal
+                    initialNotifications={initialNotifications}
+                />
             case MODALS.PROFILE:
                 return <ProfileModal />
             case MODALS.ABOUT_US:
@@ -42,19 +55,7 @@ export const ActiveModal: React.FC<ActiveModalProps> = ({ currentCalendarId, tim
         }
     };
 
-    return <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white p-8 flex items-center justify-center rounded-lg relative z-60 shadow-md">
-            <button
-                className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-                onClick={closeActiveModal}
-            >
-                ✖
-            </button>
-            {renderContent()}
-
-        </div>
-    </div>
-
-
-
+    return <Modal closeActiveModal={closeActiveModal}>
+        {renderContent()}
+    </Modal>
 };

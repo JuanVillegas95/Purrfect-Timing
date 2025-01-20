@@ -1,6 +1,15 @@
 "use client";
 
-import { BLANK_EVENT, DAYS, EVENT_NAMES } from "@utils/constants";
+import {
+  API_STATUS,
+  BLANK_API_RESPONSE,
+  BLANK_DB_CALENDAR,
+  BLANK_EVENT,
+  CALENDAR_NAMES,
+  DAYS,
+  EVENT_NAMES,
+  PLAN_LIMITATIONS,
+} from "@utils/constants";
 import {
   formatDateToISO,
   fromZonedToUTC,
@@ -8,9 +17,19 @@ import {
   parseTimeString,
   shiftSelectedDaysFromZonedToUTC,
 } from "@utils/functions";
-import { CalendarServer, Event, FetchedEvents } from "@utils/interfaces";
+import {
+  ApiResponse,
+  ClientCalendar,
+  ClientUser,
+  DBCalendar,
+  DBNotification,
+  DBUser,
+  Event,
+  FetchedEvents,
+} from "@utils/interfaces";
 import {
   DocumentReference,
+  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -25,6 +44,8 @@ import {
 import { db } from "./firebaseClient";
 import { fromZonedTime } from "date-fns-tz";
 import { Range } from "@utils/interfaces";
+import { UserPlan } from "@utils/types";
+import { addCalendarSchema } from "@utils/schemas";
 
 export const setEventServer = async (
   formData: FormData,
@@ -237,4 +258,214 @@ export const generateEventId = (calendarId: string): string => {
   const eventsCollectionRef = collection(db, `calendars/${calendarId}/events`);
   const docRef = doc(eventsCollectionRef);
   return docRef.id;
+};
+
+export const generateCalendarId = (): string => {
+  const eventsCollectionRef = collection(db, "calendars");
+  const docRef = doc(eventsCollectionRef);
+  return docRef.id;
+};
+
+export const insertCalendar = async (
+  data: {
+    user: ClientUser;
+    ownedCalendarSize: number;
+    memberCalendarSize: number;
+  },
+  prevState: ApiResponse<ClientCalendar | null> | null,
+  formData: FormData,
+): Promise<ApiResponse<ClientCalendar | null> | null> => {
+  const { user, ownedCalendarSize, memberCalendarSize } = data;
+  const calendarId = (formData.get(CALENDAR_NAMES.CALENDAR_ID) as string) ?? "";
+
+  const isNewCalendarRequest: boolean = calendarId.length === 0;
+
+  if (isNewCalendarRequest) {
+    if (ownedCalendarSize >= PLAN_LIMITATIONS[user.plan].maxOwnedCalendars) {
+      return {
+        ...prevState,
+        error: "Exceeded owned calendars limit for the current plan",
+        status: API_STATUS.VALIDATION_BLOCKED,
+        message: "",
+        data: null,
+      };
+    }
+    try {
+      const calendarDocRef = doc(collection(db, "calendars"));
+      const newServerCalendar: DBCalendar = {
+        ...BLANK_DB_CALENDAR,
+        owner: user.userId,
+      };
+      const newClientCalendar: ClientCalendar = {
+        ...newServerCalendar,
+        id: calendarDocRef.id,
+        tag: "OWNED",
+      };
+      await setDoc(calendarDocRef, newServerCalendar);
+      return {
+        ...prevState,
+        error: null,
+        status: API_STATUS.SUCCESS,
+        message: "New calendar created successfully",
+        data: newClientCalendar,
+      };
+    } catch (error) {
+      console.error("Error creating new calendar:", error);
+      return {
+        ...prevState,
+        error: "Failed to create a new calendar. Please try again later.",
+        status: API_STATUS.FAILED,
+        message: "",
+        data: null,
+      };
+    }
+  } else {
+    if (memberCalendarSize >= PLAN_LIMITATIONS[user.plan].maxMemberCalendars) {
+      return {
+        ...prevState,
+        error: "Exceeded member calendars limit for the current plan",
+        status: API_STATUS.VALIDATION_BLOCKED,
+        message: "",
+        data: null,
+      };
+    }
+
+    const validateCalendarId = addCalendarSchema.safeParse(calendarId);
+    if (!validateCalendarId.success) {
+      return {
+        ...prevState,
+        error: validateCalendarId.error.issues[0].message,
+        status: API_STATUS.VALIDATION_BLOCKED,
+        message: "",
+        data: null,
+      };
+    }
+
+    try {
+      const calendarDocRef = doc(db, "calendars", calendarId);
+      const calendarDoc = await getDoc(calendarDocRef);
+
+      if (!calendarDoc.exists()) {
+        return {
+          ...prevState,
+          error: "No such calendar exists with that ID",
+          status: API_STATUS.VALIDATION_BLOCKED,
+          message: "",
+          data: null,
+        };
+      }
+
+      const ownerId = calendarDoc.data().owner;
+      const calendarName = calendarDoc.data().name;
+
+      const notificationsRef = collection(
+        db,
+        "users",
+        ownerId,
+        "notifications",
+      );
+
+      const notificationQuery = query(
+        notificationsRef,
+        where("requestingUserId", "==", user.userId),
+        where("targetCalendarId", "==", calendarId),
+      );
+
+      const querySnapshot = await getDocs(notificationQuery);
+
+      if (!querySnapshot.empty) {
+        return {
+          ...prevState,
+          error: "A similar notification already exists",
+          status: API_STATUS.VALIDATION_BLOCKED,
+          message: "",
+          data: null,
+        };
+      }
+
+      // Create the new notification
+      const newNotification: DBNotification = {
+        requestingUserId: user.userId,
+        targetCalendarId: calendarId,
+        requestingUserName: user.name,
+        targetCalendarName: calendarName,
+      };
+
+      await addDoc(notificationsRef, newNotification);
+
+      return {
+        ...prevState,
+        error: null,
+        status: API_STATUS.SUCCESS,
+        message: "A notification has been sent to join the calendar",
+        data: null,
+      };
+    } catch (error) {
+      console.error("Error adding calendar or sending notification:", error);
+      return {
+        ...prevState,
+        error: "Failed to send notification. Please try again later",
+        status: API_STATUS.FAILED,
+        message: "",
+        data: null,
+      };
+    }
+  }
+};
+
+export const deleteCalendar = async (
+  data: {
+    calendars: ClientCalendar[];
+    calendarIdToDelete: string;
+    ownedCalendarSize: number;
+  },
+  prevState: ApiResponse<ClientCalendar[]> | null,
+): Promise<ApiResponse<ClientCalendar[]> | null> => {
+  const { calendars, ownedCalendarSize, calendarIdToDelete } = data;
+  if (ownedCalendarSize === 1)
+    return {
+      ...prevState,
+      error: "At least one active calendar is required",
+      status: API_STATUS.FAILED,
+      message: "",
+      data: null,
+    };
+  try {
+    const docRef = doc(db, "calendars", calendarIdToDelete);
+
+    // Check if the calendar exists
+    const calendarDoc = await getDoc(docRef);
+    if (!calendarDoc.exists()) {
+      return {
+        ...prevState,
+        error: "The calendar ID does not exist.",
+        status: API_STATUS.FAILED,
+        message: "",
+        data: null,
+      };
+    }
+    await deleteDoc(docRef);
+    const calendarsCopy = calendars.filter(
+      calendar => calendar.id !== calendarIdToDelete,
+    );
+
+    // Delete the calendar document
+    await deleteDoc(docRef);
+
+    return {
+      ...prevState,
+      error: "",
+      status: API_STATUS.SUCCESS,
+      message: "Calendar deleted successfully",
+      data: calendarsCopy,
+    };
+  } catch (error) {
+    return {
+      ...prevState,
+      error: "Failed to delete calendar. Please try again later",
+      status: API_STATUS.FAILED,
+      message: "",
+      data: null,
+    };
+  }
 };

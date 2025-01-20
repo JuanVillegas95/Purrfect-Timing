@@ -1,5 +1,12 @@
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
-import { EventActionsState, Range, Event, HoursAndMinutes } from "./interfaces";
+import {
+  EventActionsState,
+  Range,
+  Event,
+  HoursAndMinutes,
+  DBCalendar,
+  ClientCalendar,
+} from "./interfaces";
 
 import {
   DAYS,
@@ -16,7 +23,7 @@ import {
   MIN_START_MINUTES,
   MIN_START_HOURS,
 } from "@utils/constants";
-import { WeekdaySets } from "./types";
+import { CalendarType, WeekdaySets } from "./types";
 import { generateEventId } from "@db/clientActions";
 
 export const minutesToHours = (minutes: number): number => minutes / 60;
@@ -717,3 +724,8 @@ export const clamp = (value: number, min: number, max: number): number => {
 };
 
 // export const doesEventCrossMidnight = ({startHours , endHours, endMinutes}: Event): boolean => startHours < 0  ||
+
+export const getCalendarsSizeByTag = (
+  calendars: ClientCalendar[],
+  tag: CalendarType,
+): number => calendars.filter(calendar => calendar.tag === tag).length;

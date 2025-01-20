@@ -13,7 +13,7 @@ import { Event } from "@utils/interfaces";
 import { MdOutlineEventRepeat } from "react-icons/md";
 import { EventActionsState } from "@utils/interfaces"
 import { toZonedTime } from "date-fns-tz";
-import { useAuth } from "./AuthContext";
+import { useAuth } from "../context/AuthContext";
 import { deleteEventServer, setEventServer } from "@db/clientActions";
 
 interface EventModalProps {
@@ -80,10 +80,10 @@ export const EventModal: React.FC<EventModalProps> = ({
             {deleteState && <p className="text-blue-500 text-sm mt-1">{deleteState.message}</p>}
             <div className="flex gap-4">
                 <TextInput
-                    name={EVENT_NAMES.TITLE}
-                    placeholder="Add Title"
-                    error={saveState.error.TITLE}
-                    defaultValue={clickedEvent?.title}
+                    textName={EVENT_NAMES.TITLE}
+                    textPlaceholder="Add Title"
+                    textError={saveState.error.TITLE}
+                    textDefaultValue={clickedEvent?.title}
                 />
                 <ColorPicker
                     value={clickedEvent ? clickedEvent.color : undefined}
@@ -159,13 +159,13 @@ export const EventModal: React.FC<EventModalProps> = ({
                 {clickedEvent && <Button
                     label="Delete"
                     variant="secondary"
-                    isPending={deletePending || savePending}
+                    disbaled={deletePending || savePending}
                     formAction={deleteAction}
                 />}
                 <Button
                     label="Save"
                     variant="primary"
-                    isPending={savePending || deletePending}
+                    disbaled={savePending || deletePending}
                     formAction={saveAction}
                 />
             </div>

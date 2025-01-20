@@ -1,16 +1,15 @@
 import React from "react";
 import { MODALS } from "../../utils/constants";
 import { Icon } from "../ui/Icon"
-import { FaRegCalendarAlt } from "react-icons/fa";
+import { IoMdNotificationsOutline } from "react-icons/io";
 
 import { RxAvatar, RxQuestionMarkCircled, RxPlusCircled, RxCalendar } from "react-icons/rx";
 
 interface AsideButtonsProps {
     setActiveModal: (modal: MODALS) => void
-    currentMousePosVh: number;
 }
 
-export const AsideButtons: React.FC<AsideButtonsProps> = ({ setActiveModal, currentMousePosVh }) => {
+export const AsideButtons: React.FC<AsideButtonsProps> = ({ setActiveModal }) => {
 
     return <div className="flex flex-col items-center justify-between h-full gap-4">
         <div className="flex flex-col ">
@@ -28,6 +27,15 @@ export const AsideButtons: React.FC<AsideButtonsProps> = ({ setActiveModal, curr
                 border={false}
                 iconSize="2rem"
                 onClick={() => setActiveModal(MODALS.CALENDARS)}
+
+            />
+            <Icon
+                icon={IoMdNotificationsOutline}
+                divHeight="2.5rem"
+                divWidth="2.5rem"
+                border={false}
+                iconSize="2rem"
+                onClick={() => setActiveModal(MODALS.NOTIFICATIONS)}
 
             />
         </div>

@@ -1,52 +1,44 @@
-interface TextInputProps {
-    value?: string; // Add this for controlled input
-    onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void; // Add this for event handling
-    defaultValue?: string;
-    disabled?: boolean;
-    placeholder?: string;
-    classNameTextInput?: string;
-    name?: string;
-    error?: string;
-    buttonText?: string;
-    onButtonClick?: () => void;
+import { ButtonProps } from "@utils/interfaces";
+import { Button } from "./Button";
+
+interface TextInputProps extends ButtonProps {
+    textValue?: string;
+    textOnChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    textDefaultValue?: string;
+    textDisabled?: boolean;
+    textPlaceholder?: string;
+    textClassNameTextInput?: string;
+    textName?: string;
+    textError?: string;
 }
 
 export const TextInput: React.FC<TextInputProps> = ({
-    value,
-    onChange,
-    defaultValue,
-    disabled = false,
-    placeholder = "",
-    classNameTextInput = "",
-    name = "textInput",
-    error,
-    buttonText,
-    onButtonClick,
+    textValue,
+    textOnChange,
+    textDefaultValue,
+    textDisabled = false,
+    textPlaceholder = "",
+    textClassNameTextInput = "",
+    textName = "textInput",
+    textError,
+    ...buttonProps
 }) => {
     return (
         <div className="flex flex-col w-full">
             <div className="flex border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-blue-400 focus-within:border-blue-400 overflow-hidden">
                 <input
                     type="text"
-                    className={`w-full px-4 py-2 focus:outline-none ${classNameTextInput} ${error ? "border-red-500 focus:ring-red-400" : ""
+                    className={`w-full px-4 py-2 focus:outline-none ${textClassNameTextInput} ${textError ? "border-red-500 focus:ring-red-400" : ""
                         }`}
-                    value={value}
-                    onChange={onChange}
-                    disabled={disabled}
-                    placeholder={placeholder}
-                    name={name}
+                    value={textValue}
+                    onChange={textOnChange}
+                    disabled={textDisabled}
+                    placeholder={textPlaceholder}
+                    name={textName}
                 />
-                {buttonText && onButtonClick && (
-                    <button
-                        onClick={onButtonClick}
-                        className="bg-blue-500 text-white px-4 py-2 flex-shrink-0 hover:bg-blue-600 disabled:bg-blue-300"
-                        disabled={disabled}
-                    >
-                        {buttonText}
-                    </button>
-                )}
+                {buttonProps.isWithTextInput && <Button  {...buttonProps} />}
             </div>
-            {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+            {textError && <p className="text-red-500 text-sm mt-1">{textError}</p>}
         </div>
     );
 };
