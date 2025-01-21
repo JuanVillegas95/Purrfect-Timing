@@ -179,10 +179,6 @@ export const PLAN_LIMITATIONS: Record<UserPlan, PlanLimitations> = {
   },
 };
 
-export const enum CALENDAR_NAMES {
-  CALENDAR_ID = "CALENDAR_ID",
-}
-
 export const BLANK_DB_CALENDAR: DBCalendar = {
   members: [],
   name: "New Calendar",
@@ -194,4 +190,5 @@ export const BLANK_API_RESPONSE: ApiResponse = {
   message: "",
   error: null,
   status: API_STATUS.NONE,
+  extra: null,
 };

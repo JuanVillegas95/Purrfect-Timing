@@ -90,6 +90,7 @@ export interface ApiResponse<T = any> {
   message: string;
   error: string | null;
   status: API_STATUS;
+  extra: string | null;
 }
 
 export interface DBUser {

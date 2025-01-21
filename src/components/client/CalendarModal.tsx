@@ -9,11 +9,10 @@ import { MdGroup } from "react-icons/md";
 import { useToast } from "@context/ToastContext";
 import Modal from "./Modal";
 import { MemberModal } from "./MemberModal";
-import { API_STATUS, CALENDAR_MODAL_ACTION, CALENDAR_NAMES, PLAN_LIMITATIONS } from "@utils/constants";
+import { API_STATUS, CALENDAR_MODAL_ACTION, PLAN_LIMITATIONS } from "@utils/constants";
 import { useAuth } from "@context/AuthContext";
-import { deleteCalendar, insertCalendar } from "@db/clientActions";
+import { deleteCalendar, editCalendarName, insertCalendar } from "@db/clientActions";
 import { getCalendarsSizeByTag } from "@utils/functions";
-// import { newCalendar } from "@db/clientActions";
 
 interface CalendarsModal {
   currentCalendarId: string;
@@ -32,45 +31,48 @@ export const CalendarModal: React.FC<CalendarsModal> = ({
   if (!user) return <div>No user</div>
   const [calendars, setCalendars] = useState<ClientCalendar[]>([...initalMemberCalendars, ...initalOwnedCalendar])
   const [editedName, setEditedName] = useState("");
-  const [textInputId, setTextInputId] = useState<string>()
-  const [calendarIdToDelete, setCalendarIdToDelete] = useState<string>("")
+  const [textCalendarId, setTextCalendarId] = useState<string>()
+  const [editCalendarId, setEditCalendarId] = useState<string>();
+  const [currentError, setCurrentError] = useState<string>();
 
-  const [insertCalendarStatus, insertCalendarAction, isInsertCalendar] = useActionState(
-    insertCalendar.bind(null, {
-      user: user,
-      ownedCalendarSize: getCalendarsSizeByTag(calendars, "OWNED"),
-      memberCalendarSize: getCalendarsSizeByTag(calendars, "MEMEBER"),
-    }),
-    null
-  );
 
-  const [deleteCalendarStatus, deleteCalendarAction, isDeleteCalendar] = useActionState(
-    deleteCalendar.bind(null, {
-      calendars,
-      calendarIdToDelete,
-      ownedCalendarSize: getCalendarsSizeByTag(calendars, "OWNED")
-    }), null
-  );
-
+  const [insertCalendarStatus, insertCalendarAction, isInsertCalendar] = useActionState(insertCalendar, null);
+  const [deleteCalendarStatus, deleteCalendarAction, isDeleteCalendar] = useActionState(deleteCalendar, null);
+  const [editCalendarNameStatus, editCalendarNameAction, isEditCalendarName] = useActionState(editCalendarName, null);
 
   useEffect(() => {
-    if (insertCalendarStatus?.status === API_STATUS.SUCCESS) {
-      const { data, message } = insertCalendarStatus;
-      if (message === "New calendar created successfully" && data) {
+    if (insertCalendarStatus) {
+      const { data, message, extra, error } = insertCalendarStatus;
+      if (data && extra === "Update calendars") {
         showToast(message);
         setCalendars((prev: ClientCalendar[]) => [...prev, data]);
-      } else if (message === "A notification has been sent to join the calendar") {
+      } else if (extra === "New notification") {
         showToast(message);
       }
+      if (error) setCurrentError(error);
     }
-    if (deleteCalendarStatus?.status === API_STATUS.SUCCESS) {
-      const { message, data } = deleteCalendarStatus;
-      if (message === "Calendar deleted successfully" && data) {
+  }, [insertCalendarStatus?.message]);
+
+  useEffect(() => {
+    if (deleteCalendarStatus) {
+      const { message, data, extra, error } = deleteCalendarStatus;
+      if (data && extra === "Delete Calendar") {
         setCalendars(data);
         showToast(message);
       }
+      if (error) setCurrentError(error);
     }
-  }, [insertCalendarStatus?.status, deleteCalendarStatus?.message]);
+  }, [deleteCalendarStatus?.message]);
+
+  useEffect(() => {
+    if (editCalendarNameStatus) {
+      const { message, data, extra, error } = editCalendarNameStatus;
+      if (data && extra === "Delete Calendar") {
+        showToast(message);
+      }
+      if (error) setCurrentError(error);
+    }
+  }, [editCalendarNameStatus?.message]);
 
   return <div >
     <form>
@@ -78,14 +80,20 @@ export const CalendarModal: React.FC<CalendarsModal> = ({
         <TextInput
           textPlaceholder="Enter calendar ID (optional)"
           textClassNameTextInput="flex-grow mr-2 text-sm"
-          textName={CALENDAR_NAMES.CALENDAR_ID}
-          textOnChange={(e) => { setTextInputId(e.target.value.trim()) }}
+          textOnChange={(e) => { setTextCalendarId(e.target.value.trim()) }}
           isWithTextInput
-          textError={(insertCalendarStatus?.error || deleteCalendarStatus?.error) ?? undefined}
-          label={textInputId ? "Add" : "New"}
-          formAction={insertCalendarAction}
-          disbaled={isInsertCalendar}
+          textError={currentError ?? undefined}
+          label={textCalendarId ? "Add" : "New"}
+          disbaled={isInsertCalendar || isDeleteCalendar}
           textDisabled={isInsertCalendar}
+          formAction={isInsertCalendar ? undefined : () => {
+            insertCalendarAction({
+              ownedCalendarSize: getCalendarsSizeByTag(calendars, "OWNED"),
+              memberCalendarSize: getCalendarsSizeByTag(calendars, "MEMEBER"),
+              calendarId: textCalendarId || "",
+              user,
+            })
+          }}
         />
         <span className="text-sm mt-1 text-gray-500">
           Leave this field blank to create a new calendar, or enter an ID to request access to an existing one
@@ -94,14 +102,14 @@ export const CalendarModal: React.FC<CalendarsModal> = ({
       <div className="space-y-3">
         {calendars.map((calendar: ClientCalendar, index: number) => {
           return <div
-            key={calendar.id}
+            key={`${calendar.id}-${calendar.name}`}
             className={`flex items-center justify-between p-2 rounded-md cursor-pointer ${currentCalendarId === calendar.id
               ? "bg-blue-100 border-l-4 border-blue-500"
               : "hover:bg-gray-100"
               }`}
           // onClick={focusedCalendar ? undefined : () => handleSelectCalendar(calendar.id)}
           >
-            {currentCalendarId === calendar.id ? (
+            {editCalendarId === calendar.id ? (
               <div className="flex flex-col flex-grow">
                 <input
                   type="text"
@@ -111,11 +119,15 @@ export const CalendarModal: React.FC<CalendarsModal> = ({
                 />
                 <div className="flex gap-2 mt-2">
                   <Button
-                    // onClick={handleSaveEdit}
+                    disbaled={isEditCalendarName}
+                    formAction={isEditCalendarName ? undefined : () => editCalendarNameAction({
+                      calendarIdToEdit: editCalendarId,
+                      newName: editedName
+                    })}
                     label="Save"
                   />
                   <Button
-                    // onClick={handleCancelEdit} 
+                    onClick={() => setEditCalendarId(undefined)}
                     label="Cancel" variant="secondary"
                   />
                 </div>
@@ -136,10 +148,10 @@ export const CalendarModal: React.FC<CalendarsModal> = ({
                   divWidth="1.5rem"
                   iconSize="1.5rem"
                   className="hover:-translate-y-1"
+                  onClick={() => setEditCalendarId(prev => prev === calendar.id ? undefined : calendar.id)}
                 />
               </div>
               <div
-              //  onClick={(e) => handleMembersButton(e, calendar)}
               >
                 <Icon
                   icon={MdGroup}
@@ -149,10 +161,14 @@ export const CalendarModal: React.FC<CalendarsModal> = ({
                   className="hover:-translate-y-1"
                 />
               </div>
+
               <button
-                formAction={isDeleteCalendar ? undefined : deleteCalendarAction}
-                onClick={isDeleteCalendar ? undefined : () => {
-                  setCalendarIdToDelete(calendar.id)
+                formAction={isDeleteCalendar ? undefined : () => {
+                  deleteCalendarAction({
+                    ownedCalendarSize: getCalendarsSizeByTag(calendars, "OWNED"),
+                    calendars,
+                    calendarIdToDelete: calendar.id
+                  })
                 }}
               >
                 <Icon
@@ -161,7 +177,6 @@ export const CalendarModal: React.FC<CalendarsModal> = ({
                   divWidth="1.5rem"
                   iconSize="1.25rem"
                   className="hover:-translate-y-1"
-
                 />
               </button>
             </div>
