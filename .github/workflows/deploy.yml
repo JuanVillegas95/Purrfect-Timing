@@ -1,4 +1,4 @@
-name: Test SSH Connection
+name: Build and Deploy Next.js App
 
 on:
   push:
@@ -6,12 +6,39 @@ on:
       - main # Trigger the workflow when pushing to the main branch
 
 jobs:
-  test-ssh:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Log into the VM
-      - name: Test SSH Connection to VM
+      # Step 1: Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Step 2: Log in to GitHub Container Registry
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login ghcr.io -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+
+      # Step 3: Build Docker image
+      - name: Build Docker image
+        run: |
+          docker build \
+            --build-arg NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }} \
+            --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }} \
+            --build-arg NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }} \
+            --build-arg NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }} \
+            --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }} \
+            --build-arg NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }} \
+            --build-arg FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}" \
+            --build-arg FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }} \
+            -t ghcr.io/${{ secrets.DOCKER_USERNAME }}/purrfect-timing:latest .
+
+      # Step 4: Push Docker image
+      - name: Push Docker image
+        run: |
+          docker push ghcr.io/${{ secrets.DOCKER_USERNAME }}/purrfect-timing:latest
+
+      # Step 5: Deploy on server
+      - name: Deploy to VM
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.VM_IP }}
@@ -19,5 +46,10 @@ jobs:
           key: ${{ secrets.VM_SSH_KEY }}
           port: 22
           script: |
-            echo "Successfully logged into the VM!"
-          debug: true
+            docker pull ghcr.io/${{ secrets.DOCKER_USERNAME }}/purrfect-timing:latest
+            docker stop purrfect-timing || true
+            docker rm purrfect-timing || true
+            docker run -d --name purrfect-timing \
+              -p 3000:3000 \
+              --restart unless-stopped \
+              ghcr.io/${{ secrets.DOCKER_USERNAME }}/purrfect-timing:latest
