@@ -13,9 +13,7 @@ import {
   ClientNotification,
 } from "@utils/interfaces";
 
-import { decrypt, encrypt } from "@db/session";
 import { adminDb } from "@db/firebaseAdmin";
-import { cookies } from "next/headers";
 import { fromZonedTime } from "date-fns-tz";
 import { auth } from "@db/firebaseClient";
 export const createSession = async (): Promise<ApiResponse<ClientUser>> => {
@@ -64,13 +62,13 @@ export const createSession = async (): Promise<ApiResponse<ClientUser>> => {
       };
     }
 
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    const session = await encrypt({ userId: uid, expiresAt });
-    (await cookies()).set("session", session, {
-      httpOnly: true,
-      secure: true,
-      expires: expiresAt,
-    });
+    // const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    // const session = await encrypt({ userId: uid, expiresAt });
+    // (await cookies()).set("session", session, {
+    //   httpOnly: true,
+    //   secure: true,
+    //   expires: expiresAt,
+    // });
 
     return {
       ...BLANK_API_RESPONSE,
@@ -89,16 +87,16 @@ export const createSession = async (): Promise<ApiResponse<ClientUser>> => {
 
 export const initalFetch = async (): Promise<InitialFetch | null> => {
   try {
-    const cookie = (await cookies()).get("session")?.value;
-    const session = await decrypt(cookie);
-    const userId: string = session?.userId as string;
+    // const cookie = (await cookies()).get("session")?.value;
+    // const session = await decrypt(cookie);
+    // const userId: string = session?.userId as string;
 
-    if (!userId) {
-      throw new Error("User is not authenticated through the cookie session");
-    }
+    // if (!userId) {
+    //   throw new Error("User is not authenticated through the cookie session");
+    // }
     const notificationsRef = adminDb
       .collection("users")
-      .doc(userId)
+      .doc("userId")
       .collection("notifications");
 
     const notificationSnapshot = await notificationsRef.get();
@@ -117,10 +115,10 @@ export const initalFetch = async (): Promise<InitialFetch | null> => {
 
     const [initalOwnedCalendarsSnapshot, initalMemberCalendarsSnapshot] =
       await Promise.all([
-        adminDb.collection("calendars").where("owner", "==", userId).get(),
+        adminDb.collection("calendars").where("owner", "==", "userId").get(),
         adminDb
           .collection("calendars")
-          .where("members", "array-contains", userId)
+          .where("members", "array-contains", "userId")
           .get(),
       ]);
 
