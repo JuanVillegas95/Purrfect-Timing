@@ -63,7 +63,6 @@ export const createSession = async (): Promise<ApiResponse<ClientUser>> => {
         status: API_STATUS.SUCCESS,
       };
     }
-    const;
 
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     const session = await encrypt({ userId: uid, expiresAt });
