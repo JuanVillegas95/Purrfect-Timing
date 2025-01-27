@@ -1,6 +1,4 @@
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { decrypt } from "@db/session";
 
 const protectedRoutes = ["/"];
 const publicRoutes = ["/login"];

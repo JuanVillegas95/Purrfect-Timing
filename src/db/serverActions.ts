@@ -14,7 +14,7 @@ import {
 } from "@utils/interfaces";
 
 import { decrypt, encrypt } from "@db/session";
-import { adminAuth, adminDb } from "@db/firebaseAdmin";
+import { adminDb } from "@db/firebaseAdmin";
 import { cookies } from "next/headers";
 import { fromZonedTime } from "date-fns-tz";
 import { auth } from "@db/firebaseClient";
