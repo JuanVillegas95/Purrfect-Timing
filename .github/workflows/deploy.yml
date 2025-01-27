@@ -16,7 +16,7 @@ jobs:
 
       # Step 2: Log in to GitHub Container Registry
       - name: Log in to GitHub Container Registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login ghcr.io -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
 
       # Step 3: Build Docker image
       - name: Build Docker image
@@ -30,12 +30,12 @@ jobs:
             --build-arg NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }} \
             --build-arg FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}" \
             --build-arg FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }} \
-            -t ghcr.io/${{ github.actor }}/purrfect-timing:latest .
+            -t ghcr.io/${{ secrets.DOCKER_USERNAME }}/purrfect-timing:latest .
 
       # Step 4: Push Docker image
       - name: Push Docker image
         run: |
-          docker push ghcr.io/${{ github.actor }}/purrfect-timing:latest
+          docker push ghcr.io/${{ secrets.DOCKER_USERNAME }}/purrfect-timing:latest
 
       # Step 5: Deploy on server
       - name: Deploy to VM
@@ -46,10 +46,10 @@ jobs:
           key: ${{ secrets.VM_SSH_KEY }}
           port: 22
           script: |
-            docker pull ghcr.io/${{ github.actor }}/purrfect-timing:latest
+            docker pull ghcr.io/${{ secrets.DOCKER_USERNAME }}/purrfect-timing:latest
             docker stop purrfect-timing || true
             docker rm purrfect-timing || true
             docker run -d --name purrfect-timing \
               -p 3000:3000 \
               --restart unless-stopped \
-              ghcr.io/${{ github.actor }}/purrfect-timing:latest
+              ghcr.io/${{ secrets.DOCKER_USERNAME }}/purrfect-timing:latest
