@@ -5,11 +5,8 @@ import React from "react";
 import { RxGithubLogo } from "react-icons/rx";
 import { ImMail4 } from "react-icons/im";
 
-interface AboutUsModalProps {
 
-}
-
-export const AboutUsModal: React.FC<AboutUsModalProps> = ({ }) => {
+export const AboutUsModal: React.FC = () => {
     return <React.Fragment>
         <div className="flex items-center justify-center flex-col" >
             <div className="w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center">

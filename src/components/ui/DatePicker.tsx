@@ -1,6 +1,6 @@
-import { formatDateToISO, fromUTCToZoned } from "@utils/functions";
-import { fromZonedTime, toZonedTime } from "date-fns-tz";
-import React, { useState, useEffect } from "react";
+import { formatDateToISO } from "@utils/functions";
+import { toZonedTime } from "date-fns-tz";
+import React, { useState } from "react";
 
 interface DatePickerProps {
     placeholder?: string;

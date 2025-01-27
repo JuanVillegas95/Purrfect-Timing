@@ -11,7 +11,6 @@ interface TimeZonePickerProps {
 
 export const TimeZonePicker: React.FC<TimeZonePickerProps> = ({
     placeholder = "Select a timezone",
-    name,
     error,
     switchTimeZone,
     timeZone,

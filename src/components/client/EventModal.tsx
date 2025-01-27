@@ -13,7 +13,6 @@ import { Event } from "@utils/interfaces";
 import { MdOutlineEventRepeat } from "react-icons/md";
 import { EventActionsState } from "@utils/interfaces"
 import { toZonedTime } from "date-fns-tz";
-import { useAuth } from "../context/AuthContext";
 import { deleteEventServer, setEventServer } from "@db/clientActions";
 
 interface EventModalProps {
@@ -37,6 +36,7 @@ export const EventModal: React.FC<EventModalProps> = ({
     const [isRepeating, setIsRepeating] = useState<boolean>(clickedEvent?.endDate ? true : false);
     const [saveState, saveAction, savePending] = useActionState(
         async (previousState: EventActionsState, formData: FormData) => {
+            if (previousState) console.log("hi")
             const actionState: EventActionsState = validateEventForm(formData, isRepeating);
             const hasErrors = Object.values(actionState.error).some((error) => error !== "");
             if (hasErrors) {
@@ -60,8 +60,9 @@ export const EventModal: React.FC<EventModalProps> = ({
 
     const [deleteState, deleteAction, deletePending] = useActionState(
         async (previousState: unknown) => {
+            if (previousState) console.log("hi")
             try {
-                const isDeleted: boolean = await deleteEventServer(clickedEvent!.eventId, currentCalendarId);
+                await deleteEventServer(clickedEvent!.eventId, currentCalendarId);
                 closeActiveModal();
                 return { message: "Event deleted successfully!" };
             } catch (error) {
@@ -83,7 +84,7 @@ export const EventModal: React.FC<EventModalProps> = ({
                     textName={EVENT_NAMES.TITLE}
                     textPlaceholder="Add Title"
                     textError={saveState.error.TITLE}
-                    textDefaultValue={clickedEvent?.title}
+                    textValue={clickedEvent?.title}
                 />
                 <ColorPicker
                     value={clickedEvent ? clickedEvent.color : undefined}

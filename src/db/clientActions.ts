@@ -2,7 +2,6 @@
 
 import {
   API_STATUS,
-  BLANK_API_RESPONSE,
   BLANK_DB_CALENDAR,
   BLANK_EVENT,
   DAYS,
@@ -12,38 +11,38 @@ import {
 import {
   formatDateToISO,
   fromZonedToUTC,
-  getISORange,
   parseTimeString,
   shiftSelectedDaysFromZonedToUTC,
 } from "@utils/functions";
 import {
   ApiResponse,
   ClientCalendar,
+  ClientNotification,
   ClientUser,
   DBCalendar,
   DBNotification,
-  DBUser,
   Event,
   FetchedEvents,
 } from "@utils/interfaces";
 import {
   DocumentReference,
   addDoc,
+  arrayRemove,
+  arrayUnion,
   collection,
   deleteDoc,
   doc,
   getDoc,
   getDocs,
-  onSnapshot,
   query,
   runTransaction,
   setDoc,
+  updateDoc,
   where,
 } from "firebase/firestore";
 import { db } from "./firebaseClient";
 import { fromZonedTime } from "date-fns-tz";
 import { Range } from "@utils/interfaces";
-import { UserPlan } from "@utils/types";
 import { addCalendarSchema, editCalendarSchema } from "@utils/schemas";
 
 export const setEventServer = async (
@@ -57,7 +56,7 @@ export const setEventServer = async (
   const color: string = formData.get(EVENT_NAMES.COLOR) as string;
   const startDate: string = formData.get(EVENT_NAMES.START_DATE) as string;
   const endDate: string = formData.get(EVENT_NAMES.END_DATE) as string;
-  let { hours: startHours, minutes: startMinutes } = parseTimeString(
+  const { hours: startHours, minutes: startMinutes } = parseTimeString(
     formData.get(EVENT_NAMES.START_TIME) as string,
   );
   const { hours: endHours, minutes: endMinutes } = parseTimeString(
@@ -132,6 +131,7 @@ export const setEventServer = async (
 
       if (docSnap.exists()) {
         const existingData = docSnap.data();
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { eventId: _, ...newEventData } = newEvent;
         const merged = { ...existingData, ...newEventData };
         transaction.set(docRef, merged, { merge: true });
@@ -265,21 +265,34 @@ export const generateCalendarId = (): string => {
   return docRef.id;
 };
 
-export const insertCalendar = async (
-  prevState: ApiResponse<ClientCalendar | null> | null,
-  data: {
-    user: ClientUser;
-    ownedCalendarSize: number;
-    memberCalendarSize: number;
-    calendarId: string;
-  },
-): Promise<ApiResponse<ClientCalendar | null> | null> => {
-  const { user, ownedCalendarSize, memberCalendarSize, calendarId } = data;
+export const insertCalendar = async (data: {
+  user: ClientUser;
+  ownedCalendarSize: number;
+  memberCalendarSize: number;
+  calendarId: string;
+  calendarsIds: string[];
+}): Promise<ApiResponse<ClientCalendar | null> | null> => {
+  const {
+    user,
+    ownedCalendarSize,
+    memberCalendarSize,
+    calendarId,
+    calendarsIds,
+  } = data;
   const isNewCalendarRequest: boolean = calendarId.length === 0;
+  if (calendarsIds.includes(calendarId)) {
+    return {
+      error: "Cannot join an owned calendar",
+      status: API_STATUS.VALIDATION_BLOCKED,
+      message: "",
+      data: null,
+      extra: null,
+    };
+  }
+
   if (isNewCalendarRequest) {
     if (ownedCalendarSize >= PLAN_LIMITATIONS[user.plan].maxOwnedCalendars) {
       return {
-        ...prevState,
         error: "Exceeded owned calendars limit for the current plan",
         status: API_STATUS.VALIDATION_BLOCKED,
         message: "",
@@ -297,10 +310,10 @@ export const insertCalendar = async (
         ...newServerCalendar,
         id: calendarDocRef.id,
         tag: "OWNED",
+        memberDetails: [],
       };
       await setDoc(calendarDocRef, newServerCalendar);
       return {
-        ...prevState,
         error: null,
         status: API_STATUS.SUCCESS,
         message: `Calendar created successfully with ID: ${calendarDocRef.id}`,
@@ -310,7 +323,6 @@ export const insertCalendar = async (
     } catch (error) {
       console.error("Error creating new calendar:", error);
       return {
-        ...prevState,
         error: "Failed to create a new calendar. Please try again later.",
         status: API_STATUS.FAILED,
         message: "",
@@ -321,7 +333,6 @@ export const insertCalendar = async (
   } else {
     if (memberCalendarSize >= PLAN_LIMITATIONS[user.plan].maxMemberCalendars) {
       return {
-        ...prevState,
         error: "Exceeded member calendars limit for the current plan",
         status: API_STATUS.VALIDATION_BLOCKED,
         message: "",
@@ -333,7 +344,6 @@ export const insertCalendar = async (
     const validateCalendarId = addCalendarSchema.safeParse(calendarId);
     if (!validateCalendarId.success) {
       return {
-        ...prevState,
         error: validateCalendarId.error.issues[0].message,
         status: API_STATUS.VALIDATION_BLOCKED,
         message: "",
@@ -348,7 +358,6 @@ export const insertCalendar = async (
 
       if (!calendarDoc.exists()) {
         return {
-          ...prevState,
           error: "No such calendar exists with that ID",
           status: API_STATUS.VALIDATION_BLOCKED,
           message: "",
@@ -377,7 +386,6 @@ export const insertCalendar = async (
 
       if (!querySnapshot.empty) {
         return {
-          ...prevState,
           error: "A similar notification already exists",
           status: API_STATUS.VALIDATION_BLOCKED,
           message: "",
@@ -397,7 +405,6 @@ export const insertCalendar = async (
       await addDoc(notificationsRef, newNotification);
 
       return {
-        ...prevState,
         error: null,
         status: API_STATUS.SUCCESS,
         message: `A notification has been sent to join the calendar with ID: "${calendarId}"`,
@@ -407,7 +414,6 @@ export const insertCalendar = async (
     } catch (error) {
       console.error("Error adding calendar or sending notification:", error);
       return {
-        ...prevState,
         error: "Failed to send notification. Please try again later",
         status: API_STATUS.FAILED,
         message: "",
@@ -418,18 +424,14 @@ export const insertCalendar = async (
   }
 };
 
-export const deleteCalendar = async (
-  prevState: ApiResponse<ClientCalendar[]> | null,
-  data: {
-    calendars: ClientCalendar[];
-    calendarIdToDelete: string;
-    ownedCalendarSize: number;
-  },
-): Promise<ApiResponse<ClientCalendar[]> | null> => {
+export const deleteCalendar = async (data: {
+  calendars: ClientCalendar[];
+  calendarIdToDelete: string;
+  ownedCalendarSize: number;
+}): Promise<ApiResponse<ClientCalendar[]> | null> => {
   const { calendars, ownedCalendarSize, calendarIdToDelete } = data;
   if (ownedCalendarSize === 1)
     return {
-      ...prevState,
       error: "At least one active calendar is required",
       status: API_STATUS.FAILED,
       message: "",
@@ -443,7 +445,6 @@ export const deleteCalendar = async (
     const calendarDoc = await getDoc(docRef);
     if (!calendarDoc.exists()) {
       return {
-        ...prevState,
         error: "The calendar ID does not exist",
         status: API_STATUS.FAILED,
         message: "",
@@ -457,7 +458,6 @@ export const deleteCalendar = async (
 
     await deleteDoc(docRef);
     return {
-      ...prevState,
       error: "",
       status: API_STATUS.SUCCESS,
       message: `Calendar with ID: ${calendarIdToDelete} has been deleted`,
@@ -465,8 +465,9 @@ export const deleteCalendar = async (
       extra: "Delete Calendar",
     };
   } catch (error) {
+    console.error("Error adding calendar or sending notification:", error);
+
     return {
-      ...prevState,
       error: "Failed to delete calendar. Please try again later",
       status: API_STATUS.FAILED,
       message: "",
@@ -476,19 +477,14 @@ export const deleteCalendar = async (
   }
 };
 
-export const editCalendarName = async (
-  prevState: ApiResponse<string | null> | null,
-  data: {
-    calendarIdToEdit: string;
-    newName: string;
-  },
-): Promise<ApiResponse<string | null> | null> => {
+export const editCalendarName = async (data: {
+  calendarIdToEdit: string;
+  newName: string;
+}): Promise<ApiResponse<string | null>> => {
   const { calendarIdToEdit, newName } = data;
   const validateNewName = editCalendarSchema.safeParse(newName);
-
   if (!validateNewName.success) {
     return {
-      ...prevState,
       error: validateNewName.error.issues[0].message,
       status: API_STATUS.VALIDATION_BLOCKED,
       message: "",
@@ -498,21 +494,168 @@ export const editCalendarName = async (
   }
 
   try {
+    const docRef = doc(db, "calendars", calendarIdToEdit);
+    const calendarDoc = await getDoc(docRef);
+    if (!calendarDoc.exists()) {
+      return {
+        error: "The calendar ID does not exist",
+        status: API_STATUS.FAILED,
+        message: "",
+        data: null,
+        extra: null,
+      };
+    }
+
+    await updateDoc(docRef, { name: newName });
     return {
-      ...prevState,
-      error: "",
+      error: null,
       status: API_STATUS.SUCCESS,
-      message: `Calendar with ID:  has been deleted`,
-      data: null,
-      extra: "Delete Calendar",
+      message: "Calendar name updated",
+      data: newName,
+      extra: null,
     };
   } catch (error) {
+    console.error("Error adding calendar or sending notification:", error);
+
     return {
-      ...prevState,
-      error: "Failed to delete calendar. Please try again later",
+      error: "Failed to edit calendar name. Please try again later",
       status: API_STATUS.FAILED,
       message: "",
       data: null,
+      extra: null,
+    };
+  }
+};
+
+export const denyCalendarRequest = async (data: {
+  userId: string;
+  notificationId: string;
+}): Promise<ApiResponse<boolean>> => {
+  try {
+    const { userId, notificationId } = data; // Destructure the data parameter
+    const docRef = doc(db, `users/${userId}/notifications/${notificationId}`);
+
+    const notificationDoc = await getDoc(docRef);
+    if (!notificationDoc.exists()) {
+      return {
+        error: "The calendar notification does not exist",
+        status: API_STATUS.FAILED,
+        message: "",
+        data: null,
+        extra: null,
+      };
+    }
+
+    await deleteDoc(docRef);
+
+    return {
+      error: "",
+      status: API_STATUS.SUCCESS,
+      message: `Notification successfully deleted!`,
+      data: true, // Return `true` to indicate successful deletion
+      extra: null,
+    };
+  } catch (error) {
+    console.error("Error adding calendar or sending notification:", error);
+
+    return {
+      error: "Failed to delete notification. Please try again later.", // Adjusted the error message
+      status: API_STATUS.FAILED,
+      message: "",
+      data: false,
+      extra: null,
+    };
+  }
+};
+
+export const acceptCalendarRequest = async (
+  userId: string,
+  notificationId: string,
+  clientNotification: ClientNotification,
+): Promise<ApiResponse<boolean>> => {
+  try {
+    const { requestingUserId, targetCalendarId } = clientNotification;
+
+    const calendarDocRef = doc(db, `calendars/${targetCalendarId}`);
+
+    const calendarDoc = await getDoc(calendarDocRef);
+    if (!calendarDoc.exists()) {
+      return {
+        error: "The calendar does not exist",
+        status: API_STATUS.FAILED,
+        message: "",
+        data: false,
+        extra: null,
+      };
+    }
+
+    await updateDoc(calendarDocRef, {
+      members: arrayUnion(requestingUserId),
+    });
+
+    const notificationDocRef = doc(
+      db,
+      `users/${userId}/notifications/${notificationId}`,
+    );
+    await deleteDoc(notificationDocRef);
+
+    return {
+      error: "",
+      status: API_STATUS.SUCCESS,
+      message: `Notification ${notificationId} successfully accepted!`,
+      data: true,
+      extra: null,
+    };
+  } catch (error) {
+    console.error("Error adding calendar or sending notification:", error);
+
+    return {
+      error: "Failed to process the calendar request. Please try again later.",
+      status: API_STATUS.FAILED,
+      message: "",
+      data: false,
+      extra: null,
+    };
+  }
+};
+
+export const removeMember = async (
+  memberId: string,
+  calendarId: string,
+): Promise<ApiResponse<boolean>> => {
+  try {
+    const docRef = doc(db, `calendars/${calendarId}`);
+
+    const calendarDoc = await getDoc(docRef);
+    if (!calendarDoc.exists()) {
+      return {
+        error: "The calendar no longer exists",
+        status: API_STATUS.FAILED,
+        message: "The calendar no longer exists",
+        data: null,
+        extra: null,
+      };
+    }
+
+    await updateDoc(docRef, {
+      members: arrayRemove(memberId),
+    });
+
+    return {
+      error: "",
+      status: API_STATUS.SUCCESS,
+      message: `Member ${memberId} successfully removed from calendar.`,
+      data: true,
+      extra: null,
+    };
+  } catch (error) {
+    console.error("Error adding calendar or sending notification:", error);
+
+    return {
+      error: "Failed to remove the member. Please try again later.",
+      status: API_STATUS.FAILED,
+      message: "Failed to remove the member. Please try again later.",
+      data: false,
       extra: null,
     };
   }

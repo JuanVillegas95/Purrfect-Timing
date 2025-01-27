@@ -7,7 +7,7 @@ interface IconProps {
     iconSize?: string;
     divWidth?: string;
     divHeight?: string
-    onClick?: () => void
+    onClick?: (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => void
     className?: string;
 }
 

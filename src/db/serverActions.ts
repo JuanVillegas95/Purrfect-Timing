@@ -1,47 +1,11 @@
 "use server";
 import { UserPlan } from "@utils/types";
+import { INTIAL_RANGE, BLANK_API_RESPONSE, API_STATUS } from "@utils/constants";
+import { formatDateToISO, getISORange, localTimeZone } from "@utils/functions";
 import {
-  addDoc,
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  setDoc,
-  query,
-  where,
-  deleteDoc,
-  DocumentData,
-  DocumentSnapshot,
-  QueryDocumentSnapshot,
-  documentId,
-} from "firebase/firestore";
-import {
-  USER_ID,
-  BLANK_EVENT,
-  CALENDAR_ID,
-  DAYS,
-  EVENT_NAMES,
-  BLANK_CALENDAR_ACTIONS_STATE,
-  INTIAL_RANGE,
-  BLANK_API_RESPONSE,
-  API_STATUS,
-} from "@utils/constants";
-import {
-  addDateBy,
-  formatDateToISO,
-  fromUTCToZoned,
-  getISORange,
-  localTimeZone,
-  mostRecentMonday,
-  parseTimeString,
-} from "@utils/functions";
-import {
-  CalendarActionsState,
   Event,
-  DBCalendar,
   InitialFetch,
   Range,
-  DBNotification,
   ApiResponse,
   DBUser,
   ClientCalendar,
@@ -49,9 +13,8 @@ import {
   ClientNotification,
 } from "@utils/interfaces";
 
-import { auth, db } from "@db/firebaseClient";
 import { decrypt, encrypt } from "@db/session";
-import { adminAuth, adminDb } from "@db/firebaseAdmin";
+import { adminDb } from "@db/firebaseAdmin";
 import { cookies } from "next/headers";
 import { fromZonedTime } from "date-fns-tz";
 
@@ -157,6 +120,7 @@ export const initalFetch = async (): Promise<InitialFetch | null> => {
         name: doc.data().name,
         owner: doc.data().owner,
         tag: "OWNED",
+        memberDetails: [],
       }));
 
     const initalMemberCalendars: ClientCalendar[] =
@@ -166,6 +130,7 @@ export const initalFetch = async (): Promise<InitialFetch | null> => {
         name: doc.data().name,
         owner: doc.data().owner,
         tag: "MEMEBER",
+        memberDetails: [],
       }));
 
     if (initalOwnedCalendars.length <= 0) {

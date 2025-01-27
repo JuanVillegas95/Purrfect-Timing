@@ -1,10 +1,7 @@
 import React from "react";
 import { Icon } from "@ui/Icon"
-import Image from "next/image";
-import logo from "@public/logo.png"
-import { LOGO_SIZE } from "@utils/constants";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa6";
-import { calculateRangeDays, formatMonthRange, ianaToReadable, timeToTwoDigits } from "@utils/functions";
+import { formatMonthRange } from "@utils/functions";
 import { Range } from "@utils/interfaces";
 import { TimeZonePicker } from "@ui/TimeZonePicker"
 
@@ -15,9 +12,8 @@ interface CalendarHeaderProps {
     isLoadingEvents: boolean
     range: Range
     switchTimeZone: (timeZone: string) => void;
-
 }
-export const CalendarHeader: React.FC<CalendarHeaderProps> = ({ monday, calendarNavigation, timeZone, isLoadingEvents, range, switchTimeZone }) => {
+export const CalendarHeader: React.FC<CalendarHeaderProps> = ({ monday, calendarNavigation, timeZone, isLoadingEvents, switchTimeZone }) => {
     return <div className="flex justify-between items-center h-full w-full text-blue-500 pr-2">
         <div className="flex items-center h-full gap-2 ml-4">
             {/* <div className="relative ">

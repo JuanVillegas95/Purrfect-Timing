@@ -85,7 +85,7 @@ export interface PlanLimitations {
   isFreeColorUse: boolean;
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T> {
   data: T | null;
   message: string;
   error: string | null;
@@ -112,9 +112,14 @@ export interface DBCalendar {
   owner: string;
 }
 
+export interface MemberDetails {
+  id: string;
+  name: string;
+}
 export interface ClientCalendar extends DBCalendar {
   id: string;
   tag: CalendarType;
+  memberDetails: MemberDetails[];
 }
 
 export interface ButtonProps {

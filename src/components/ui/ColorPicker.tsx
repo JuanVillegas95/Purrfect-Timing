@@ -20,7 +20,7 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ isActive, open, close,
     >
         <input
             type="text"
-            name="COLOR"
+            name={name}
             value={selectedColor}
             readOnly
             className="w-6 h-6 rounded-full border cursor-pointer border-black text-transparent focus:invisible"

@@ -4,7 +4,6 @@ import { Button } from "./Button";
 interface TextInputProps extends ButtonProps {
     textValue?: string;
     textOnChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    textDefaultValue?: string;
     textDisabled?: boolean;
     textPlaceholder?: string;
     textClassNameTextInput?: string;
@@ -15,7 +14,6 @@ interface TextInputProps extends ButtonProps {
 export const TextInput: React.FC<TextInputProps> = ({
     textValue,
     textOnChange,
-    textDefaultValue,
     textDisabled = false,
     textPlaceholder = "",
     textClassNameTextInput = "",

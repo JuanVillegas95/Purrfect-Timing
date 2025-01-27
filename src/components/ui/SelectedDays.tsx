@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 
 interface SelectedDaysProps {
     names?: string[];
     error?: string;
-    values?: boolean[] 
+    values?: boolean[]
 }
 
 export const SelectedDays: React.FC<SelectedDaysProps> = ({

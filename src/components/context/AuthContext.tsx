@@ -1,8 +1,7 @@
 "use client"
 import React, { useState, createContext, useContext, useEffect, useRef } from "react";
-import { signInWithPopup, GoogleAuthProvider, signOut, GithubAuthProvider, onAuthStateChanged, UserCredential, User } from "firebase/auth";
-import { useRouter } from "next/navigation";
-import { ApiResponse, DBUser, DBCalendar, ClientUser } from "@utils/interfaces";
+import { signInWithPopup, GoogleAuthProvider, signOut, GithubAuthProvider, onAuthStateChanged, User } from "firebase/auth";
+import { ApiResponse, ClientUser } from "@utils/interfaces";
 import { auth } from "@db/firebaseClient";
 import { createSession } from "@db/serverActions";
 import { API_STATUS } from "@utils/constants";
@@ -25,7 +24,6 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<ClientUser | null>(null);
     const [isSigningIn, setIsSigningIn] = useState(false);
     const [error, setError] = useState<string>("");
-    const router = useRouter()
     const sessionCheckedRef = useRef(false);
     useEffect(() => {
 

@@ -1,10 +1,5 @@
 "use client"
 import React, { useState, createContext, useContext, useEffect, ReactNode } from "react";
-import { signInWithPopup, GoogleAuthProvider, signOut, GithubAuthProvider, onAuthStateChanged, UserCredential, User } from "firebase/auth";
-import { useRouter } from "next/navigation";
-import { UserServer } from "@utils/interfaces";
-import { auth } from "@db/firebaseClient";
-import { createSessionServer } from "@db/serverActions";
 
 
 

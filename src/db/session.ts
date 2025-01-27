@@ -9,17 +9,6 @@ if (!secretKey) {
   throw new Error("Falta la variable de entorno SESSION_SECRET");
 }
 
-export const createSession = async (userId: string) => {
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  const session = await encrypt({ userId, expiresAt });
-
-  (await cookies()).set("session", session, {
-    httpOnly: true,
-    secure: true,
-    expires: expiresAt,
-  });
-};
-
 export const deleteSession = async () => {
   (await cookies()).delete("session");
 };
@@ -43,7 +32,7 @@ export const decrypt = async (session: string | undefined = "") => {
       algorithms: ["HS256"],
     });
     return payload;
-  } catch (error) {
+  } catch {
     console.log("Failed to verify session");
   }
 };

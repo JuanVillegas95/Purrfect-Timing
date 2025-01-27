@@ -1,10 +1,8 @@
 import React from "react";
-import { TimeZonePicker } from "@ui/TimeZonePicker";
 import { Avatar } from "@ui/Avatar";
 import image from "@public/beautiful-latin-woman-avatar-character-icon-free-vector.jpg"
 
-interface ProfileModalProps { }
-export const ProfileModal: React.FC<ProfileModalProps> = () => {
+export const ProfileModal: React.FC = () => {
     return <div className="w-auto">
         <h1 className="text-2xl font-bold text-gray-800 mb-4">Hi!</h1>
         <p className="text-gray-600 mb-6">Profile Info</p>

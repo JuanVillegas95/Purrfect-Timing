@@ -1,9 +1,8 @@
-import React, { useState } from "react";
+import React from "react";
 import { MODALS, PICKERS } from "@utils/constants";
-import { MemberModal } from "./MemberModal";
 import { EventModal } from "./EventModal";
 import { AboutUsModal } from "./AboutUsModal";
-import { CalendarServer, Event, NotificationServer } from "@utils/interfaces";
+import { Event } from "@utils/interfaces";
 import { CalendarModal } from "./CalendarModal";
 import { ProfileModal } from "@server/ProfileModal";
 import { NotificationsModal } from "./NotificationsModal";
@@ -18,12 +17,9 @@ interface ActiveModalProps {
     timeZone: string;
     currentCalendarId: string;
     switchCalendar: (calendarId: string) => Promise<void>;
-    initalMemberCalendars: CalendarServer[];
-    initalOwnedCalendar: CalendarServer[]
-    initialNotifications: NotificationServer[]
 }
 
-export const ActiveModal: React.FC<ActiveModalProps> = ({ currentCalendarId, timeZone, setActivePicker, activePicker, activeModal, closeActiveModal, currentEvent, initialNotifications, switchCalendar, initalMemberCalendars, initalOwnedCalendar }) => {
+export const ActiveModal: React.FC<ActiveModalProps> = ({ currentCalendarId, timeZone, setActivePicker, activePicker, activeModal, closeActiveModal, currentEvent, switchCalendar }) => {
     const renderContent = (): React.JSX.Element => {
         switch (activeModal) {
             case MODALS.EVENT:
@@ -39,12 +35,9 @@ export const ActiveModal: React.FC<ActiveModalProps> = ({ currentCalendarId, tim
                 return <CalendarModal
                     currentCalendarId={currentCalendarId}
                     switchCalendar={switchCalendar}
-                    initalMemberCalendars={initalMemberCalendars}
-                    initalOwnedCalendar={initalOwnedCalendar}
                 />
             case MODALS.NOTIFICATIONS:
                 return <NotificationsModal
-                    initialNotifications={initialNotifications}
                 />
             case MODALS.PROFILE:
                 return <ProfileModal />

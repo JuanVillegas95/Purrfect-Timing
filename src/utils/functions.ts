@@ -4,7 +4,6 @@ import {
   Range,
   Event,
   HoursAndMinutes,
-  DBCalendar,
   ClientCalendar,
 } from "./interfaces";
 
@@ -18,10 +17,6 @@ import {
   BLANK_EVENT_ERRORS,
   EVENT_FETCH_TESHHOLDS,
   COLORS,
-  MAX_END_MINUTES,
-  MAX_END_HOURS,
-  MIN_START_MINUTES,
-  MIN_START_HOURS,
 } from "@utils/constants";
 import { CalendarType, WeekdaySets } from "./types";
 import { generateEventId } from "@db/clientActions";
@@ -108,47 +103,42 @@ export const generate60Minutes = (): string[] => {
 };
 
 export const syncScroll = (
-  hoursOfTheDay: React.RefObject<HTMLElement | undefined>,
-  mainGrid: React.RefObject<HTMLElement | undefined>,
+  hoursOfTheDay: React.RefObject<HTMLElement>,
+  mainGrid: React.RefObject<HTMLElement>,
 ): (() => void) => {
-  let isSyncingHours = false; // Prevent recursive updates
-  let isSyncingGrid = false;
+  if (!hoursOfTheDay.current || !mainGrid.current) return () => {};
 
-  const syncScrollHandlerForMainGrid = () => {
-    if (!hoursOfTheDay.current || !mainGrid.current || isSyncingHours) {
-      return;
+  let isSyncingLeft = false;
+  let isSyncingRight = false;
+
+  const handleScrollLeft = () => {
+    if (!isSyncingLeft) {
+      isSyncingRight = true;
+      console.log(
+        "[syncScroll] Updating mainGrid to match hoursOfTheDay scrollTop",
+      );
+      mainGrid.current!.scrollTop = hoursOfTheDay.current!.scrollTop;
     }
-    isSyncingGrid = true; // Prevent recursive triggering
-    hoursOfTheDay.current.scrollTop = mainGrid.current.scrollTop;
-    isSyncingGrid = false;
+    isSyncingLeft = false;
   };
 
-  const syncScrollHandlerForHoursOfTheDay = () => {
-    if (!hoursOfTheDay.current || !mainGrid.current || isSyncingGrid) {
-      return;
+  const handleScrollRight = () => {
+    if (!isSyncingRight) {
+      isSyncingLeft = true;
+      console.log(
+        "[syncScroll] Updating hoursOfTheDay to match mainGrid scrollTop",
+      );
+      hoursOfTheDay.current!.scrollTop = mainGrid.current!.scrollTop;
     }
-    isSyncingHours = true; // Prevent recursive triggering
-    mainGrid.current.scrollTop = hoursOfTheDay.current.scrollTop;
-    isSyncingHours = false;
+    isSyncingRight = false;
   };
 
-  // Attach event listeners
-  mainGrid.current?.addEventListener("scroll", syncScrollHandlerForMainGrid);
-  hoursOfTheDay.current?.addEventListener(
-    "scroll",
-    syncScrollHandlerForHoursOfTheDay,
-  );
+  hoursOfTheDay.current.addEventListener("scroll", handleScrollLeft);
+  mainGrid.current.addEventListener("scroll", handleScrollRight);
 
-  // Cleanup function to remove event listeners
   return () => {
-    mainGrid.current?.removeEventListener(
-      "scroll",
-      syncScrollHandlerForMainGrid,
-    );
-    hoursOfTheDay.current?.removeEventListener(
-      "scroll",
-      syncScrollHandlerForHoursOfTheDay,
-    );
+    hoursOfTheDay.current?.removeEventListener("scroll", handleScrollLeft);
+    mainGrid.current?.removeEventListener("scroll", handleScrollRight);
   };
 };
 
@@ -723,9 +713,12 @@ export const clamp = (value: number, min: number, max: number): number => {
   return Math.max(min, Math.min(value, max));
 };
 
-// export const doesEventCrossMidnight = ({startHours , endHours, endMinutes}: Event): boolean => startHours < 0  ||
-
 export const getCalendarsSizeByTag = (
   calendars: ClientCalendar[],
   tag: CalendarType,
 ): number => calendars.filter(calendar => calendar.tag === tag).length;
+
+export const getTotalTimeWithOtherHalfInMinutes = (
+  event: Event,
+  otherHalf: Event,
+): number => getEventTotalMinutes(event) + getEventTotalMinutes(otherHalf);

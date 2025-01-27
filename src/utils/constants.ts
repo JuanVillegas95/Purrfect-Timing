@@ -1,12 +1,9 @@
-import { generateCalendarId } from "@db/clientActions";
 import {
   Event,
   EventActionsState,
   CalendarActionsState,
   PlanLimitations,
   DBCalendar,
-  ApiResponse,
-  ClientCalendar,
 } from "./interfaces";
 import { UserPlan } from "./types";
 
@@ -185,7 +182,7 @@ export const BLANK_DB_CALENDAR: DBCalendar = {
   owner: "",
 };
 
-export const BLANK_API_RESPONSE: ApiResponse = {
+export const BLANK_API_RESPONSE = {
   data: null,
   message: "",
   error: null,

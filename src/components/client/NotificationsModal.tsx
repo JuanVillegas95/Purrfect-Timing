@@ -1,29 +1,57 @@
-import React, { useState } from "react";
-import { Avatar } from "@ui/Avatar";
-import { FaCheck, FaTimes } from "react-icons/fa"; // Icons for accept/deny
-import image from "@public/beautiful-latin-woman-avatar-character-icon-free-vector.jpg";
-import { DBNotification } from "@utils/interfaces";
+import React, { useEffect, useState } from "react";
+import { ClientNotification } from "@utils/interfaces";
 import { IoCheckmarkCircleOutline } from "react-icons/io5";
 import { RxCrossCircled } from "react-icons/rx";
 import { Icon } from "@ui/Icon";
+import { useAuth } from "@context/AuthContext";
+import { collection, onSnapshot, query } from "firebase/firestore";
+import { db } from "@db/firebaseClient";
+import { acceptCalendarRequest, denyCalendarRequest } from "@db/clientActions";
+import { useToast } from "@context/ToastContext";
 
-interface NotificationsModalProps {
-    initialNotifications: DBNotification[];
-}
 
-export const NotificationsModal: React.FC<NotificationsModalProps> = ({ initialNotifications }) => {
-    const [notifications, setNotifications] = useState<DBNotification[]>(initialNotifications);
+export const NotificationsModal: React.FC = () => {
+    const [notifications, setNotifications] = useState<ClientNotification[]>([]);
+    const { user } = useAuth();
+    const { showToast } = useToast();
 
-    const handleAccept = (notification: DBNotification) => {
-        console.log(`Accepted request from ${notification.requestingUserName} for ${notification.targetCalendarName}`);
-        setNotifications((prev) => prev.filter((n) => n !== notification)); // Remove accepted notification
-    };
+    useEffect(() => {
+        if (!user?.userId) return;
 
-    const handleDeny = (notification: DBNotification) => {
-        console.log(`Denied request from ${notification.requestingUserName} for ${notification.targetCalendarName}`);
-        setNotifications((prev) => prev.filter((n) => n !== notification)); // Remove denied notification
-    };
+        const notificationsQuery = query(collection(db, `users/${user.userId}/notifications`));
 
+        const unsubNotifications = onSnapshot(notificationsQuery, (snapshot) => {
+            setNotifications((prev) => {
+                let updated = [...prev];
+                snapshot.docChanges().forEach((change) => {
+                    const changedNotifications: ClientNotification = {
+                        id: change.doc.id,
+                        ...change.doc.data(),
+                    } as ClientNotification;
+
+                    switch (change.type) {
+                        case "added":
+                            updated.push(changedNotifications);
+                            break;
+                        case "modified": {
+                            const idx = updated.findIndex((c) => c.id === changedNotifications.id);
+                            if (idx !== -1) updated[idx] = changedNotifications;
+                            break;
+                        }
+                        case "removed":
+                            updated = updated.filter((c) => c.id !== changedNotifications.id);
+                            break;
+                    }
+                });
+                return updated;
+            });
+        });
+        return unsubNotifications;
+    }, [user?.userId]);
+
+
+
+    if (!user?.userId) return <div>No user</div>
     return (
         <div className="max-h-[50vh] max-w-[50vw] overflow-auto">
             {notifications.length > 0 ? (
@@ -41,7 +69,6 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({ initialN
                             </div>
                         </div>
 
-                        {/* Accept/Deny Buttons */}
                         <div className="flex gap-2">
                             <Icon
                                 icon={IoCheckmarkCircleOutline}
@@ -49,6 +76,14 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({ initialN
                                 divWidth="2.5rem"
                                 iconSize="2rem"
                                 className="text-blue-500 hover:text-blue-400"
+                                onClick={async () => {
+                                    const response = await acceptCalendarRequest(
+                                        user.userId,
+                                        notification.id,
+                                        notification,
+                                    )
+                                    showToast(response.message)
+                                }}
                             />
 
                             <Icon icon={RxCrossCircled}
@@ -56,7 +91,10 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({ initialN
                                 divWidth="2.5rem"
                                 iconSize="2rem"
                                 className="text-red-500 hover:text-red-400"
-
+                                onClick={async () => {
+                                    const response = await denyCalendarRequest({ userId: user.userId, notificationId: notification.id })
+                                    showToast(response.message)
+                                }}
                             />
 
                         </div>
