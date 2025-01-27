@@ -4,7 +4,7 @@ import { FaGithub } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
 import React from "react";
 export const Login = () => {
-    const { isSigningIn, signIn, error } = useAuth()
+    const { isSigningIn, signIn, error } = useAuth();
 
 
     if (isSigningIn) return <p>Login...</p>

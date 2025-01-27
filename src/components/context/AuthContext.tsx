@@ -29,31 +29,25 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
             if (!firebaseUser || !firebaseUser.email || !firebaseUser.displayName) {
-                setUser(null); // Clear session if user is logged out
-                sessionCheckedRef.current = false; // Reset for future logins
+                setUser(null);
+                sessionCheckedRef.current = false;
                 return;
             }
 
-            const { uid, email, displayName } = firebaseUser;
 
-            // Avoid calling createSession if session has already been established
-            if (sessionCheckedRef.current) {
-                console.log("Session already checked, skipping createSession.");
-                return;
-            }
+            if (sessionCheckedRef.current) return;
 
             try {
-                // Attempt to create/retrieve a session
-                const res: ApiResponse<ClientUser> = await createSession(uid, email, displayName);
+                const res: ApiResponse<ClientUser> = await createSession();
 
                 if (res.status !== API_STATUS.SUCCESS) {
                     console.error("Failed to create session:", res.error);
                     setError("Failed to create session.");
-                    setUser(null); // Clear user if session creation fails
+                    setUser(null);
                     return;
                 }
 
-                setUser(res.data); // Update user state
+                setUser(res.data);
                 sessionCheckedRef.current = true; // Mark session as handled
             } catch (err) {
                 console.error("Session creation failed:", err);
@@ -63,7 +57,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         });
 
         return () => unsubscribe();
-    }, []); // No dependency on user, avoiding infinite loops
+    }, []);
 
 
     const signIn = async (providerName: "google" | "github"): Promise<void> => {

@@ -14,15 +14,26 @@ import {
 } from "@utils/interfaces";
 
 import { decrypt, encrypt } from "@db/session";
-import { adminDb } from "@db/firebaseAdmin";
+import { adminAuth, adminDb } from "@db/firebaseAdmin";
 import { cookies } from "next/headers";
 import { fromZonedTime } from "date-fns-tz";
+import { auth } from "@db/firebaseClient";
+export const createSession = async (): Promise<ApiResponse<ClientUser>> => {
+  const currentUser = auth.currentUser;
+  if (
+    !currentUser ||
+    !currentUser.email ||
+    !currentUser.displayName ||
+    !currentUser.uid
+  )
+    return {
+      ...BLANK_API_RESPONSE,
+      data: null,
+      status: API_STATUS.FAILED,
+      error: "Something wrong went to the server",
+    };
+  const { uid, email, displayName: name } = currentUser;
 
-export const createSession = async (
-  uid: string,
-  email: string,
-  name: string,
-): Promise<ApiResponse<ClientUser>> => {
   try {
     const user = await adminDb.collection("users").doc(uid).get();
     if (!user.exists) {
@@ -52,6 +63,7 @@ export const createSession = async (
         status: API_STATUS.SUCCESS,
       };
     }
+    const;
 
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     const session = await encrypt({ userId: uid, expiresAt });
