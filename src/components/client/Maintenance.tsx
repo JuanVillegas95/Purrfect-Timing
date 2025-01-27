@@ -13,7 +13,7 @@ export const UnderMaintenance: React.FC<UnderMaintenanceProps> = ({
         <h1 className="text-4xl font-bold text-gray-800 mb-4">🚧 Under Maintenance 🚧</h1>
         <p className="text-gray-600 text-lg">{message}</p>
         <p className="text-sm text-gray-500 mt-4">
-          Thank you for your patience
+          Thank you for your patience!
         </p>
       </div>
     </div>
