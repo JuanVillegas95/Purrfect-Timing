@@ -53,3 +53,4 @@ jobs:
               -p 3000:3000 \
               --restart unless-stopped \
               ghcr.io/${{ secrets.DOCKER_USERNAME }}/purrfect-timing:latest
+          debug: true
