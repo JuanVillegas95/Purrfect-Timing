@@ -8,7 +8,7 @@ import { DaysOfTheWeek } from "./DaysOfTheWeek";
 import { CalendarHeader } from "./CalendarHeader";
 import { addDateBy, syncScroll, mostRecentMonday, updateTime, handleKeyboard, getWeekBuckets, formatDateToISO, adjustFetchRange, mapEventIdToEvent, mapWeekStartToBuckets, localTimeZone, deleteEventIdFromBucket, addEventIdToBucket, getISORange, getPaddingFromRange, fromUTCEventToZonedEvent } from "@utils/functions";
 import { HEADER_HEIGTH_ASIDE_WIDTH, MODALS, PICKERS, INTIAL_RANGE } from "@utils/constants";
-import { Event, InitialFetch, Range, FetchedEvents } from "@utils/interfaces";
+import { Event, Range, FetchedEvents } from "@utils/interfaces";
 import { WeekdaySets } from "@utils/types";
 import { db } from "@db/firebaseClient";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
@@ -17,15 +17,15 @@ import { useAuth } from "@context/AuthContext";
 import { LoadingSpinner } from "@ui/LoadingSpinner";
 
 interface DashboardProps {
-    initCalendarData: InitialFetch
+    firstCalendarId: string
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ initCalendarData: { initialCalendarId, initalRecurring, initalSingle } }) => {
-    const [currentCalendarId, setCurrentCalendarId] = useState<string>(initialCalendarId)
+export const Dashboard: React.FC<DashboardProps> = ({ firstCalendarId }) => {
+    const [currentCalendarId, setCurrentCalendarId] = useState<string>(firstCalendarId)
     const [currentTimeZone, setCurrentTimeZone] = useState<string>(localTimeZone());
     const [range, setRange] = useState<Range>(getISORange(INTIAL_RANGE, currentTimeZone))
-    const [eventIdToEvent, setEventIdToEvent] = useState<Map<string, Event>>(mapEventIdToEvent(initalSingle, initalRecurring, localTimeZone()));
-    const [weekStartToBuckets, setWeekStartToBuckets] = useState<Map<string, WeekdaySets>>(mapWeekStartToBuckets([...eventIdToEvent.values()], range, currentTimeZone));
+    const [eventIdToEvent, setEventIdToEvent] = useState<Map<string, Event>>(new Map());
+    const [weekStartToBuckets, setWeekStartToBuckets] = useState<Map<string, WeekdaySets>>(new Map());
 
     const [monday, setMonday] = useState<Date>(mostRecentMonday(localTimeZone()))
     const [activePicker, setActivePicker] = useState<PICKERS>(PICKERS.NONE);

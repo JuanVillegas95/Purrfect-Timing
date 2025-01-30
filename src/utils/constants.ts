@@ -177,9 +177,9 @@ export const PLAN_LIMITATIONS: Record<UserPlan, PlanLimitations> = {
 };
 
 export const BLANK_DB_CALENDAR: DBCalendar = {
-  members: [],
-  name: "New Calendar",
-  owner: "",
+  memberIds: [],
+  calendarName: "New Calendar",
+  ownerId: "",
 };
 
 export const BLANK_API_RESPONSE = {

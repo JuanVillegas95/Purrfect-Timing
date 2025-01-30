@@ -5,6 +5,10 @@ import {
   Event,
   HoursAndMinutes,
   ClientCalendar,
+  ApiResponse,
+  DBUser,
+  DBCalendar,
+  ClientUser,
 } from "./interfaces";
 
 import {
@@ -17,8 +21,9 @@ import {
   BLANK_EVENT_ERRORS,
   EVENT_FETCH_TESHHOLDS,
   COLORS,
+  API_STATUS,
 } from "@utils/constants";
-import { CalendarType, WeekdaySets } from "./types";
+import { CalendarType, UserPlan, WeekdaySets } from "./types";
 import { generateEventId } from "@db/clientActions";
 
 export const minutesToHours = (minutes: number): number => minutes / 60;
@@ -715,10 +720,59 @@ export const clamp = (value: number, min: number, max: number): number => {
 
 export const getCalendarsSizeByTag = (
   calendars: ClientCalendar[],
-  tag: CalendarType,
-): number => calendars.filter(calendar => calendar.tag === tag).length;
+  type: CalendarType,
+): number => calendars.filter(calendar => calendar.type === type).length;
 
 export const getTotalTimeWithOtherHalfInMinutes = (
   event: Event,
   otherHalf: Event,
 ): number => getEventTotalMinutes(event) + getEventTotalMinutes(otherHalf);
+
+export const newApiResponse = <T>(
+  status: API_STATUS,
+  message: string = "",
+  error: string | null = null,
+  data: T | null = null,
+  extra: string | null = null,
+): ApiResponse<T> => ({
+  data,
+  message,
+  error,
+  status,
+  extra,
+});
+
+export const newDBCalendar = (
+  ownerId: string,
+  calendarName: string = "New Calendar",
+  memberIds: string[] = [],
+): DBCalendar => ({
+  calendarName,
+  memberIds,
+  ownerId,
+});
+
+export const newDBUser = (
+  userName: string,
+  email: string,
+  ownedCalendarId: string,
+  calendarIds: string[] = [],
+  createdAt: string = new Date().toISOString(),
+  plan: UserPlan = "FREE",
+): DBUser => ({
+  userName,
+  email,
+  calendarIds: [...calendarIds, ownedCalendarId],
+  plan,
+  createdAt,
+});
+
+export const newClientUser = (
+  dbUser: DBUser,
+  userId: string,
+  notifications: Map<string, Notification> = new Map(),
+): ClientUser => ({
+  ...dbUser,
+  userId,
+  notifications,
+});

@@ -265,6 +265,12 @@ export const generateCalendarId = (): string => {
   return docRef.id;
 };
 
+export const generateUserId = (): string => {
+  const eventsCollectionRef = collection(db, "users");
+  const docRef = doc(eventsCollectionRef);
+  return docRef.id;
+};
+
 export const insertCalendar = async (data: {
   user: ClientUser;
   ownedCalendarSize: number;

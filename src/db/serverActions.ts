@@ -1,218 +1,209 @@
 "use server";
 import { UserPlan } from "@utils/types";
-import { INTIAL_RANGE, BLANK_API_RESPONSE, API_STATUS } from "@utils/constants";
-import { formatDateToISO, getISORange, localTimeZone } from "@utils/functions";
+import { INTIAL_RANGE, API_STATUS } from "@utils/constants";
+import {
+  formatDateToISO,
+  getISORange,
+  localTimeZone,
+  newApiResponse,
+  newClientUser,
+  newDBCalendar,
+  newDBUser,
+} from "@utils/functions";
 import {
   Event,
-  InitialFetch,
   Range,
   ApiResponse,
   DBUser,
   ClientCalendar,
   ClientUser,
   ClientNotification,
+  DBCalendar,
 } from "@utils/interfaces";
 
-import { adminDb } from "@db/firebaseAdmin";
+import { adminAuth, adminDb } from "@db/firebaseAdmin";
 import { fromZonedTime } from "date-fns-tz";
 import { auth } from "@db/firebaseClient";
-export const createSession = async (): Promise<ApiResponse<ClientUser>> => {
-  const currentUser = auth.currentUser;
-  if (
-    !currentUser ||
-    !currentUser.email ||
-    !currentUser.displayName ||
-    !currentUser.uid
-  )
-    return {
-      ...BLANK_API_RESPONSE,
-      data: null,
-      status: API_STATUS.FAILED,
-      error: "Something wrong went to the server",
-    };
-  const { uid, email, displayName: name } = currentUser;
+import { cookies } from "next/headers";
+import { generateUserId } from "./clientActions";
 
+export const createSession = async (
+  uid: string,
+  email: string,
+  userName: string,
+  jwtToken: string,
+): Promise<ApiResponse<ClientUser>> => {
   try {
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    (await cookies()).set("jwtToken", jwtToken, {
+      httpOnly: true,
+      secure: true,
+      expires: expiresAt,
+    });
     const user = await adminDb.collection("users").doc(uid).get();
-    if (!user.exists) {
-      const newCalendar = {
-        name: "New calendar",
-        members: [],
-        owner: uid,
-      };
-
-      const calendarDocRef = await adminDb
+    if (userName === "guest") {
+      return newApiResponse(
+        API_STATUS.SUCCESS,
+        "Guest user session created successfully",
+        "",
+        newClientUser(newDBUser(userName, email, "0"), uid),
+      );
+    } else if (!user.exists) {
+      const newCalendar: DBCalendar = newDBCalendar(uid);
+      const newCalendarDocRef = await adminDb
         .collection("calendars")
         .add(newCalendar);
 
-      const newUser: DBUser = {
-        email,
-        name,
-        createdAt: new Date().toISOString(),
-        calendars: [calendarDocRef.id],
-        plan: "FREE" as UserPlan,
-      };
-
+      const newUser: DBUser = newDBUser(userName, email, newCalendarDocRef.id);
       await adminDb.collection("users").doc(uid).set(newUser);
 
-      return {
-        ...BLANK_API_RESPONSE,
-        data: { ...newUser, userId: uid, notifications: new Map() },
-        status: API_STATUS.SUCCESS,
-      };
+      return newApiResponse(
+        API_STATUS.SUCCESS,
+        "New user session created successfully",
+        "",
+        newClientUser(newUser, uid),
+      );
     }
-
-    // const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    // const session = await encrypt({ userId: uid, expiresAt });
-    // (await cookies()).set("session", session, {
-    //   httpOnly: true,
-    //   secure: true,
-    //   expires: expiresAt,
-    // });
-
-    return {
-      ...BLANK_API_RESPONSE,
-      data: { ...(user.data() as ClientUser), userId: user.id },
-      status: API_STATUS.SUCCESS,
-    };
+    const existingUser = user.data() as DBUser;
+    return newApiResponse(
+      API_STATUS.SUCCESS,
+      "Existent user session created successfully",
+      "",
+      newClientUser(existingUser, uid),
+    );
   } catch (error) {
-    return {
-      ...BLANK_API_RESPONSE,
-      status: API_STATUS.FAILED,
-      message:
-        error instanceof Error ? error.message : "An unexpected error occurred",
-    };
+    return newApiResponse(
+      API_STATUS.FAILED,
+      "",
+      error instanceof Error
+        ? error.message
+        : "An error occurred while accessing the database service. Please try again later",
+    );
   }
 };
 
-export const initalFetch = async (): Promise<InitialFetch | null> => {
+export const deleteSession = async (): Promise<ApiResponse<boolean>> => {
   try {
-    // const cookie = (await cookies()).get("session")?.value;
-    // const session = await decrypt(cookie);
-    // const userId: string = session?.userId as string;
-
-    // if (!userId) {
-    //   throw new Error("User is not authenticated through the cookie session");
-    // }
-    const notificationsRef = adminDb
-      .collection("users")
-      .doc("userId")
-      .collection("notifications");
-
-    const notificationSnapshot = await notificationsRef.get();
-
-    const initialNotifications: ClientNotification[] =
-      notificationSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          requestingUserId: data.requestingUserId,
-          targetCalendarId: data.targetCalendarId,
-          requestingUserName: data.requestingUserName,
-          targetCalendarName: data.targetCalendarName,
-        };
-      }) || [];
-
-    const [initalOwnedCalendarsSnapshot, initalMemberCalendarsSnapshot] =
-      await Promise.all([
-        adminDb.collection("calendars").where("owner", "==", "userId").get(),
-        adminDb
-          .collection("calendars")
-          .where("members", "array-contains", "userId")
-          .get(),
-      ]);
-
-    const initalOwnedCalendars: ClientCalendar[] =
-      initalOwnedCalendarsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        members: doc.data().members,
-        name: doc.data().name,
-        owner: doc.data().owner,
-        tag: "OWNED",
-        memberDetails: [],
-      }));
-
-    const initalMemberCalendars: ClientCalendar[] =
-      initalMemberCalendarsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        members: doc.data().members,
-        name: doc.data().name,
-        owner: doc.data().owner,
-        tag: "MEMEBER",
-        memberDetails: [],
-      }));
-
-    if (initalOwnedCalendars.length <= 0) {
-      throw new Error("authenticated user does not has an owned calendar");
-    }
-
-    const firstOwnedCalendar: ClientCalendar = initalOwnedCalendars[0];
-    const eventsRef = adminDb
-      .collection("calendars")
-      .doc(firstOwnedCalendar.id)
-      .collection("events");
-
-    const localRange = getISORange(INTIAL_RANGE, localTimeZone());
-    const range: Range = {
-      start: formatDateToISO(fromZonedTime(localRange.start, localTimeZone())),
-      end: formatDateToISO(fromZonedTime(localRange.end, localTimeZone())),
-    };
-
-    const standaloneSnapshot = await eventsRef
-      .where("startDate", ">=", range.start)
-      .where("startDate", "<=", range.end)
-      .where("endDate", "==", null)
-      .get();
-
-    const recurringSnapshot = await eventsRef
-      .where("startDate", "<=", range.end)
-      .where("endDate", ">=", range.start)
-      .get();
-
-    const initalSingle: Event[] = standaloneSnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        eventId: doc.id,
-        title: data.title,
-        description: data.description,
-        color: data.color,
-        startHours: data.startHours,
-        startMinutes: data.startMinutes,
-        endHours: data.endHours,
-        endMinutes: data.endMinutes,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        selectedDays: data.selectedDays,
-      } as Event;
-    });
-
-    const initalRecurring = recurringSnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        eventId: doc.id,
-        title: data.title,
-        description: data.description,
-        color: data.color,
-        startHours: data.startHours,
-        startMinutes: data.startMinutes,
-        endHours: data.endHours,
-        endMinutes: data.endMinutes,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        selectedDays: data.selectedDays,
-      } as Event;
-    });
-
-    return {
-      initalOwnedCalendars,
-      initalMemberCalendars,
-      initalSingle,
-      initalRecurring,
-      initialCalendarId: firstOwnedCalendar.id,
-      initialNotifications,
-    };
+    (await cookies()).delete("jwtToken");
+    return newApiResponse(
+      API_STATUS.SUCCESS,
+      "Logged out successfully. See you again!",
+    );
   } catch (error) {
-    console.error("Error during initialFetch:", error);
-    return null;
+    return newApiResponse(
+      API_STATUS.FAILED,
+      "",
+      error instanceof Error
+        ? error.message
+        : "An error occurred while accessing the database service. Please try again later",
+    );
   }
 };
+
+export const generateCustomToken = async (): Promise<ApiResponse<string>> => {
+  try {
+    const additionalClaims = {
+      displayName: "guest",
+      email: "guest@email.com",
+    };
+
+    const customToken = await adminAuth.createCustomToken(
+      "lYR7c4NilW4bJUHdfu7X",
+      additionalClaims,
+    );
+
+    return newApiResponse(
+      API_STATUS.SUCCESS,
+      "Custom token generated successfully",
+      "",
+      customToken,
+    );
+  } catch (error) {
+    return newApiResponse(
+      API_STATUS.FAILED,
+      "",
+      error instanceof Error
+        ? error.message
+        : "An error occurred while accessing the database service. Please try again later",
+    );
+  }
+};
+
+export const initialFetch = async (): Promise<ApiResponse<string>> => {
+  try {
+    const jwtToken = (await cookies()).get("jwtToken")?.value;
+    if (!jwtToken) {
+      return newApiResponse(
+        API_STATUS.FAILED,
+        "Authentication failed",
+        "No session token found during the inital fetch.",
+      );
+    }
+    const user = await adminAuth.verifyIdToken(jwtToken);
+    if (user && user.email && user.email === "guest@email.com")
+      return newApiResponse(API_STATUS.SUCCESS, "Welcome back", "", "0");
+
+    const userId: string = user.uid;
+
+    const firstCalendarIdSnapshot = await adminDb
+      .collection("users")
+      .doc(userId)
+      .get();
+
+    if (!firstCalendarIdSnapshot.exists) {
+      return newApiResponse(
+        API_STATUS.FAILED,
+        "User not found",
+        `No user associated with user ID: ${userId} during inital fetching. Please contact support.`,
+      );
+    }
+
+    const userData = firstCalendarIdSnapshot.data();
+    if (
+      !userData ||
+      !userData.calendarIds ||
+      !Array.isArray(userData.calendarIds) ||
+      userData.calendarIds.length === 0
+    ) {
+      return newApiResponse(
+        API_STATUS.FAILED,
+        "No calendars found",
+        "The user is not associated with any calendars during inital fetching. Please contact support.",
+      );
+    }
+
+    const firstCalendarId = userData.calendarIds[0];
+
+    return newApiResponse(
+      API_STATUS.SUCCESS,
+      "Welcome back",
+      "",
+      firstCalendarId,
+    );
+  } catch (error) {
+    return newApiResponse(
+      API_STATUS.FAILED,
+      "Server error",
+      error instanceof Error
+        ? error.message
+        : "An unexpected error occurred while fetching user information.",
+    );
+  }
+};
+
+// const localRange = getISORange(INTIAL_RANGE, localTimeZone());
+// const range: Range = {
+//   start: formatDateToISO(fromZonedTime(localRange.start, localTimeZone())),
+//   end: formatDateToISO(fromZonedTime(localRange.end, localTimeZone())),
+// };
+
+// const standaloneSnapshot = await eventsRef
+//   .where("startDate", ">=", range.start)
+//   .where("startDate", "<=", range.end)
+//   .where("endDate", "==", null)
+//   .get();
+
+// const recurringSnapshot = await eventsRef
+//   .where("startDate", "<=", range.end)
+//   .where("endDate", ">=", range.start)
+//   .get();

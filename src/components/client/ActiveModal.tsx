@@ -6,7 +6,7 @@ import { Event } from "@utils/interfaces";
 import { CalendarModal } from "./CalendarModal";
 import { ProfileModal } from "@server/ProfileModal";
 import { NotificationsModal } from "./NotificationsModal";
-import Modal from "./Modal";
+import { Modal } from "./Modal";
 
 interface ActiveModalProps {
     activeModal: MODALS;

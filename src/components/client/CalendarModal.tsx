@@ -7,7 +7,7 @@ import { FaTrashAlt } from "react-icons/fa";
 import { ClientCalendar, MemberDetails } from "@utils/interfaces";
 import { MdGroup } from "react-icons/md";
 import { useToast } from "@context/ToastContext";
-import Modal from "./Modal";
+import { Modal } from "./Modal";
 import { API_STATUS } from "@utils/constants";
 import { useAuth } from "@context/AuthContext";
 import { deleteCalendar, editCalendarName, insertCalendar, removeMember } from "@db/clientActions";

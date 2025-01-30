@@ -1,7 +1,7 @@
 import { Icon } from "@ui/Icon";
 import React from "react";
-
-
+import Image from "next/image";
+import icon from "../../app/icon.png"
 import { RxGithubLogo } from "react-icons/rx";
 import { ImMail4 } from "react-icons/im";
 
@@ -9,8 +9,9 @@ import { ImMail4 } from "react-icons/im";
 export const AboutUsModal: React.FC = () => {
     return <React.Fragment>
         <div className="flex items-center justify-center flex-col" >
-            <div className="w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center">
-                <span className="text-gray-500 font-bold text-xl">Logo</span>
+            <div className="flex justify-center items-center flex-col">
+                <h1 className="text-2xl xl:text-3xl font-extrabold mb-4">Purrfect Timing</h1>
+                <Image src={icon} alt="App Icon" width={100} height={100} />
             </div>
 
             <div className="text-center mt-4">

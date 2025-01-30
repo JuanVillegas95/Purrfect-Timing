@@ -94,10 +94,10 @@ export interface ApiResponse<T> {
 }
 
 export interface DBUser {
-  name: string;
+  userName: string;
   email: string;
   createdAt: string;
-  calendars: string[];
+  calendarIds: string[];
   plan: UserPlan;
 }
 
@@ -107,19 +107,20 @@ export interface ClientUser extends DBUser {
 }
 
 export interface DBCalendar {
-  members: string[];
-  name: string;
-  owner: string;
+  calendarName: string;
+  memberIds: string[];
+  ownerId: string;
 }
 
-export interface MemberDetails {
+export interface Memeber {
   id: string;
   name: string;
 }
+
 export interface ClientCalendar extends DBCalendar {
   id: string;
-  tag: CalendarType;
-  memberDetails: MemberDetails[];
+  type: CalendarType;
+  memebrs: Memeber[];
 }
 
 export interface ButtonProps {
